@@ -56,6 +56,7 @@ async def run_simulation(ws):
             
         x_est = baseline + delta + (0.5 if cycle % 2 == 0 else -0.5)
         raw_diff = int(x_est)
+        heartbeat = 1 if ((elapsed % 5.0) < 2.5) else 0
         
         batch = [
             {"name": "g_touch_active", "value": touch},
@@ -66,7 +67,8 @@ async def run_simulation(ws):
             {"name": "dynamic_delta", "value": round(delta, 1)},
             {"name": "confidence", "value": round(conf, 2)},
             {"name": "predicted_class", "value": cls},
-            {"name": "dta_threshold", "value": 48.0}
+            {"name": "dta_threshold", "value": 48.0},
+            {"name": "g_heartbeat_state", "value": heartbeat}
         ]
         
         msg = json.dumps({
@@ -80,7 +82,9 @@ async def run_simulation(ws):
         await ws.recv() # Await ack
         
         if time.time() - last_print >= 2.0:
-            print(f"[Sim Live] Delta={delta:6.1f} LSB | Touch={touch} | Class={cls} | Conf={conf:.2f}")
+            hb_str = "HB:ON (BLUE)" if heartbeat else "HB:OFF"
+            led_str = "GREEN" if touch else "RED"
+            print(f"[Sim Live] Delta={delta:6.1f} LSB | Touch={touch} (LED:{led_str}) | {hb_str} | Class={cls} | Conf={conf:.2f}")
             last_print = time.time()
             
         await asyncio.sleep(0.015)
@@ -112,9 +116,10 @@ async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
                 continue
 
             parts = line.split(",")
-            # Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Status>
+            # Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status>
             if len(parts) >= 12:
                 try:
+                    cycle = int(parts[1]) if parts[1].isdigit() else 0
                     raw_diff = int(parts[4])
                     x_est = float(parts[5])
                     baseline = float(parts[6])
@@ -123,6 +128,10 @@ async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
                     conf = float(parts[9])
                     touch = int(parts[10])
                     exec_us = int(parts[11])
+                    if len(parts) >= 13 and parts[12].strip().isdigit():
+                        heartbeat = int(parts[12].strip())
+                    else:
+                        heartbeat = 1 if ((cycle % 333) < 167) else 0
 
                     batch = [
                         {"name": "g_touch_active", "value": touch},
@@ -133,7 +142,8 @@ async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
                         {"name": "dynamic_delta", "value": dyn_delta},
                         {"name": "confidence", "value": conf},
                         {"name": "predicted_class", "value": pred_class},
-                        {"name": "dta_threshold", "value": 48.0}
+                        {"name": "dta_threshold", "value": 48.0},
+                        {"name": "g_heartbeat_state", "value": heartbeat}
                     ]
 
                     msg = json.dumps({
@@ -148,8 +158,9 @@ async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
                     packet_count += 1
 
                     if time.time() - last_print >= 2.0:
-                        status = "TOUCH" if touch else "IDLE"
-                        print(f"[Hardware Live] Delta={dyn_delta:6.1f} LSB | Touch={touch} ({status}) | Class={pred_class} | Conf={conf:.2f} | Exec={exec_us}us ({packet_count} frames)", flush=True)
+                        status = "TOUCH (GREEN)" if touch else "IDLE (RED)"
+                        hb_str = "HB:ON (BLUE)" if heartbeat else "HB:OFF"
+                        print(f"[Hardware Live] Delta={dyn_delta:6.1f} LSB | Touch={touch} ({status}) | {hb_str} | Class={pred_class} | Conf={conf:.2f} | Exec={exec_us}us ({packet_count} frames)", flush=True)
                         last_print = time.time()
                 except (ValueError, IndexError):
                     pass

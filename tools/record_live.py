@@ -11,7 +11,7 @@ import serial
 
 secs = float(sys.argv[1]) if len(sys.argv) > 1 else 30.0
 out = sys.argv[2] if len(sys.argv) > 2 else "data/hardware/m_live_recording.csv"
-HDR = "cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,status"
+HDR = "cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,hb,status"
 
 ser = serial.Serial("COM5", 115200, timeout=0.2)
 ser.reset_input_buffer()
@@ -21,7 +21,7 @@ with open(out, "w") as f:
     f.write("t_s," + HDR + "\n")
     while time.time() - t0 < secs:
         line = ser.readline().decode(errors="ignore").strip()
-        if line.startswith("D,") and line.count(",") == 12:
+        if line.startswith("D,") and line.count(",") in (12, 13):
             f.write("%.3f,%s\n" % (time.time() - t0, line[2:]))
             n += 1
 ser.close()

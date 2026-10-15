@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>S32K144W CVD Touch Sensing Engine | FreeMASTER Live Scope</title>
+  <title>Touch Sensing Demo</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg-base: #0B0F19;
-      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card: rgba(17, 24, 39, 0.78);
       --bg-card-border: rgba(255, 255, 255, 0.08);
       --nxp-blue: #0EAFE0;
       --nxp-orange: #FCA600;
@@ -41,6 +41,8 @@
       border-radius: 12px;
       padding: 14px 24px;
       margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     .brand {
       display: flex;
@@ -48,18 +50,58 @@
       gap: 14px;
     }
     .brand-logo {
-      font-size: 20px;
+      font-size: 21px;
       font-weight: 800;
-      letter-spacing: 1px;
-      background: linear-gradient(135deg, #FCA600, #0EAFE0);
+      letter-spacing: 0.8px;
+      background: linear-gradient(135deg, #0EAFE0, #10B981);
       -webkit-background-clip: text;
+      -webkit-fill-color: transparent;
       -webkit-text-fill-color: transparent;
     }
     .brand-title {
-      font-size: 15px;
+      font-size: 14px;
       color: var(--text-muted);
       border-left: 1px solid rgba(255, 255, 255, 0.15);
       padding-left: 14px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .heartbeat-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(14, 175, 224, 0.08);
+      border: 1px solid rgba(14, 175, 224, 0.25);
+      color: var(--nxp-blue);
+      padding: 6px 14px;
+      border-radius: 20px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .heartbeat-pill.active {
+      background: rgba(14, 175, 224, 0.32);
+      border-color: #0EAFE0;
+      color: #FFFFFF;
+      box-shadow: 0 0 18px rgba(14, 175, 224, 0.8);
+      transform: scale(1.03);
+    }
+    .heartbeat-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--nxp-blue);
+      opacity: 0.35;
+      transition: all 0.2s;
+    }
+    .heartbeat-pill.active .heartbeat-dot {
+      opacity: 1;
+      background: #FFFFFF;
+      box-shadow: 0 0 12px #0EAFE0, 0 0 20px #0EAFE0;
     }
     .conn-status {
       display: flex;
@@ -91,10 +133,35 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(0.8); }
     }
+    .btn-lang {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-lang:hover {
+      background: rgba(14, 175, 224, 0.2);
+      border-color: var(--nxp-blue);
+      color: #FFFFFF;
+      box-shadow: 0 0 12px rgba(14, 175, 224, 0.4);
+    }
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 340px;
       gap: 20px;
+    }
+    @media (max-width: 960px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
     }
     .card {
       background: var(--bg-card);
@@ -124,13 +191,17 @@
       border-radius: 12px;
       margin-bottom: 16px;
       transition: all 0.25s ease;
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.25);
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .indicator-card.idle {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.3);
     }
     .indicator-card.touched {
-      background: rgba(14, 175, 224, 0.18);
-      border-color: var(--nxp-blue);
-      box-shadow: 0 0 30px rgba(14, 175, 224, 0.35);
+      background: rgba(16, 185, 129, 0.18);
+      border-color: var(--nxp-green);
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.4);
     }
     .indicator-card.water {
       background: rgba(245, 158, 11, 0.18);
@@ -138,10 +209,11 @@
       box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
     }
     .indicator-text {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
       letter-spacing: 1px;
       margin-top: 6px;
+      transition: color 0.2s;
     }
     .stat-row {
       display: flex;
@@ -199,29 +271,43 @@
     }
     .badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 4px 12px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    .badge-bare { background: rgba(14, 175, 224, 0.2); color: var(--nxp-blue); border: 1px solid var(--nxp-blue); }
+    .badge-bare { background: rgba(16, 185, 129, 0.25); color: var(--nxp-green); border: 1px solid var(--nxp-green); }
     .badge-water { background: rgba(245, 158, 11, 0.2); color: var(--nxp-orange); border: 1px solid var(--nxp-orange); }
-    .badge-idle { background: rgba(16, 185, 129, 0.2); color: var(--nxp-green); border: 1px solid var(--nxp-green); }
-    .badge-swipe { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
+    .badge-idle { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
+    .badge-swipe { background: rgba(139, 92, 246, 0.2); color: var(--nxp-purple); border: 1px solid var(--nxp-purple); }
   </style>
 </head>
 <body>
 
   <div class="header-bar">
     <div class="brand">
-      <div class="brand-logo">NXP FreeMASTER Lite</div>
-      <div class="brand-title">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
+      <div class="brand-logo" id="brandTitle">Touch Sensing Demo</div>
+      <div class="brand-title" id="pageSubTitle">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
     </div>
-    <div class="conn-status" id="connPill">
-      <div class="conn-dot" id="connDot"></div>
-      <span id="connLabel">Connecting...</span>
+    <div class="header-actions">
+      <!-- 0.2 Hz Synchronized Hardware Heartbeat Indicator -->
+      <div class="heartbeat-pill" id="heartbeatPill" title="Blinks synchronously with Board Blue LED at 0.2 Hz">
+        <div class="heartbeat-dot" id="heartbeatDot"></div>
+        <span id="heartbeatLabel">MCU 0.2 Hz Heartbeat</span>
+      </div>
+
+      <!-- WebSocket Connection Pill -->
+      <div class="conn-status" id="connPill">
+        <div class="conn-dot" id="connDot"></div>
+        <span id="connLabel">Connecting (8090)...</span>
+      </div>
+
+      <!-- Language Switch Button -->
+      <button class="btn-lang" onclick="toggleLanguage()" id="langBtn">
+        <span>🌐</span> <span id="langBtnText">繁體中文 / EN</span>
+      </button>
     </div>
   </div>
 
@@ -229,9 +315,9 @@
     <!-- Main Oscilloscope Card -->
     <div class="card">
       <div class="card-title">
-        <span>Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
+        <span id="scopeTitle">Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
         <div style="font-size: 12px; font-weight: normal; color: var(--text-muted);">
-          <span>Rolling Window: 100 Samples</span>
+          <span id="rollingWindowText">Rolling Window: 100 Samples</span>
         </div>
       </div>
       <div class="chart-box">
@@ -239,7 +325,7 @@
       </div>
       <div class="controls-row">
         <button class="btn" onclick="togglePause()" id="pauseBtn">Pause Scope</button>
-        <button class="btn" onclick="resetZoom()">Reset Axis</button>
+        <button class="btn" onclick="resetZoom()" id="resetBtn">Reset Axis</button>
         <button class="btn" onclick="toggleSim()" id="simBtn">Toggle Demo Mode</button>
       </div>
     </div>
@@ -247,12 +333,12 @@
     <!-- Side Panel Diagnostics & Gauges -->
     <div>
       <!-- Touch Status Card -->
-      <div class="card indicator-card" id="touchCard">
-        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);">
+      <div class="card indicator-card idle" id="touchCard">
+        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);" id="decisionTitle">
           Hardware Touch Decision
         </div>
-        <div class="indicator-text" id="touchStatusText" style="color: var(--nxp-green);">
-          IDLE / QUIESCENT
+        <div class="indicator-text" id="touchStatusText" style="color: var(--nxp-red);">
+          IDLE / UNTOUCHED (RED LED)
         </div>
         <div style="margin-top: 8px;">
           <span class="badge badge-idle" id="classBadge">CLASS: IDLE</span>
@@ -261,36 +347,36 @@
 
       <!-- TinyML & Metrics Card -->
       <div class="card">
-        <div class="card-title">Algorithm Metrics</div>
+        <div class="card-title" id="metricsTitle">Algorithm Metrics</div>
         
         <div class="stat-row">
-          <span class="stat-label">Net Shift &Delta;<sub>dyn</sub>:</span>
+          <span class="stat-label" id="lblDelta">Net Shift &Delta;<sub>dyn</sub>:</span>
           <span class="stat-value" id="valDelta" style="color: var(--nxp-purple);">+0.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">Kalman Filter x<sub>est</sub>:</span>
+          <span class="stat-label" id="lblKalman">Kalman Filter x<sub>est</sub>:</span>
           <span class="stat-value" id="valKalman" style="color: var(--nxp-green);">185.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">Dynamic Baseline:</span>
+          <span class="stat-label" id="lblBaseline">Dynamic Baseline:</span>
           <span class="stat-value" id="valBaseline" style="color: var(--nxp-orange);">185.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">Raw Differential &Delta;D:</span>
+          <span class="stat-label" id="lblRaw">Raw Differential &Delta;D:</span>
           <span class="stat-value" id="valRaw" style="color: var(--nxp-blue);">+185 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">DTA Threshold:</span>
+          <span class="stat-label" id="lblDta">DTA Threshold:</span>
           <span class="stat-value" id="valDta" style="color: var(--text-muted);">48.0 LSB</span>
         </div>
 
         <div class="stat-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
           <div style="display: flex; justify-content: space-between; width: 100%;">
-            <span class="stat-label">TinyML Confidence:</span>
+            <span class="stat-label" id="lblConf">TinyML Confidence:</span>
             <span class="stat-value" id="valConf" style="color: var(--nxp-blue);">0%</span>
           </div>
           <div class="confidence-bar-bg">
@@ -299,13 +385,23 @@
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">MCU Execution Time:</span>
+          <span class="stat-label" id="lblExec">MCU Execution Time:</span>
           <span class="stat-value" id="valExec" style="color: var(--nxp-green);">32 &mu;s</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label">ASIL-B Safety Budget:</span>
-          <span class="stat-value" style="color: var(--text-muted);">&lt; 15,000 &mu;s (99.8% Headroom)</span>
+          <span class="stat-label" id="lblSafety">ASIL-B Safety Budget:</span>
+          <span class="stat-value" id="valSafety" style="color: var(--text-muted);">&lt; 15,000 &mu;s (99.8% Headroom)</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label" id="lblHeartbeat">MCU Heartbeat (0.2 Hz):</span>
+          <span class="stat-value" id="valHeartbeat" style="color: var(--nxp-blue);">● IDLE (LOW)</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label" id="lblLeds">Hardware Board LEDs:</span>
+          <span class="stat-value" id="valLeds" style="font-size: 12px; color: #FCA600;">🔴 RED: ON | 🔵 BLUE: OFF</span>
         </div>
       </div>
     </div>
@@ -318,6 +414,104 @@
     let simCycle = 0;
     let ws = null;
     let rpcId = 1;
+    let currentLang = localStorage.getItem('touch_demo_lang') || 'zh';
+
+    const i18n = {
+      en: {
+        pageTitle: "Touch Sensing Demo",
+        brandTitle: "Touch Sensing Demo",
+        subTitle: "XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine",
+        heartbeatActive: "MCU 0.2 Hz Pulse (HIGH)",
+        heartbeatIdle: "MCU 0.2 Hz Idle (LOW)",
+        connConnecting: "Connecting (8090)...",
+        connConnected: "Connected (8090)",
+        connDisconnected: "Disconnected (Reconnecting...)",
+        scopeTitle: "Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)",
+        rollingWindowText: "Rolling Window: 100 Samples (1.5s Trace)",
+        pauseScope: "Pause Scope",
+        resumeScope: "Resume Scope",
+        resetBtn: "Reset Axis",
+        toggleDemo: "Toggle Demo Mode",
+        useHardware: "Use Hardware (COM5)",
+        decisionTitle: "Hardware Touch Decision",
+        statusIdle: "IDLE / UNTOUCHED (RED LED)",
+        statusTouched: "TOUCH CONFIRMED (GREEN LED)",
+        statusWater: "WATER DROPLET REJECTED",
+        classIdle: "CLASS: IDLE",
+        classBare: "CLASS: BARE FINGER",
+        classWater: "CLASS: WATER DROPLET",
+        metricsTitle: "Algorithm Metrics",
+        lblDelta: "Net Shift Δdyn:",
+        lblKalman: "Kalman Filter xest:",
+        lblBaseline: "Dynamic Baseline:",
+        lblRaw: "Raw Differential ΔD:",
+        lblDta: "DTA Threshold:",
+        lblConf: "TinyML Confidence:",
+        lblExec: "MCU Execution Time:",
+        lblSafety: "ASIL-B Safety Budget:",
+        valSafety: "< 15,000 μs (99.8% Headroom)",
+        lblHeartbeat: "MCU Heartbeat (0.2 Hz):",
+        hbActiveText: "● PULSE ON (2.5s)",
+        hbIdleText: "○ IDLE OFF (2.5s)",
+        lblLeds: "Hardware Board LEDs:",
+        ledIdleBlueOn: "🔴 RED: ON | 🔵 BLUE: ON",
+        ledIdleBlueOff: "🔴 RED: ON | ⚫ BLUE: OFF",
+        ledPressBlueOn: "🟢 GREEN: ON | 🔵 BLUE: ON",
+        ledPressBlueOff: "🟢 GREEN: ON | ⚫ BLUE: OFF",
+        langBtnText: "English",
+        chartTraceDelta: "Net Dynamic Shift (Delta)",
+        chartTraceRaw: "Raw CVD Diff (Delta D)",
+        chartTraceKalman: "Kalman Estimate (x_est)",
+        chartTraceBaseline: "Asymmetric Baseline"
+      },
+      zh: {
+        pageTitle: "Touch Sensing Demo - 觸控感應即時示波器",
+        brandTitle: "Touch Sensing Demo",
+        subTitle: "XS32K14WEVB-Q064 車規級雙極性差動 CVD 電容觸控引擎",
+        heartbeatActive: "MCU 0.2 Hz 實體心跳 (高電位)",
+        heartbeatIdle: "MCU 0.2 Hz 實體心跳 (待機中)",
+        connConnecting: "連線中 (8090)...",
+        connConnected: "已連線 (8090)",
+        connDisconnected: "連線中斷 (重新連線中...)",
+        scopeTitle: "即時多軌觸控示波器 (66.7 Hz / 15.0 ms 訊框硬體精確同步)",
+        rollingWindowText: "滑動訊窗: 100 樣本 (1.5 秒即時歷程)",
+        pauseScope: "暫停示波器",
+        resumeScope: "繼續示波器",
+        resetBtn: "重設座標軸",
+        toggleDemo: "切換示範模式",
+        useHardware: "使用實體硬體 (COM5)",
+        decisionTitle: "硬體觸控決策",
+        statusIdle: "待機靜止無按壓 (紅燈亮)",
+        statusTouched: "有效觸控確認 (綠燈亮)",
+        statusWater: "水滴抗擾拒斥 (無誤觸)",
+        classIdle: "類別: 待機",
+        classBare: "類別: 裸手按壓",
+        classWater: "類別: 水滴干擾",
+        metricsTitle: "演算法核心指標",
+        lblDelta: "淨動態位移 Δdyn:",
+        lblKalman: "卡爾曼濾波估計 xest:",
+        lblBaseline: "動態基線值:",
+        lblRaw: "原始差動值 ΔD:",
+        lblDta: "動態調整門檻 DTA:",
+        lblConf: "TinyML 置信度:",
+        lblExec: "MCU 運算耗時:",
+        lblSafety: "ASIL-B 安全預算:",
+        valSafety: "< 15,000 μs (99.8% 裕度)",
+        lblHeartbeat: "MCU 心跳 (0.2 Hz):",
+        hbActiveText: "● 脈衝亮 (2.5秒)",
+        hbIdleText: "○ 待機滅 (2.5秒)",
+        lblLeds: "板載 LED 燈號:",
+        ledIdleBlueOn: "🔴 紅燈: 亮 (待機) | 🔵 藍心跳: 亮",
+        ledIdleBlueOff: "🔴 紅燈: 亮 (待機) | ⚫ 藍心跳: 滅",
+        ledPressBlueOn: "🟢 綠燈: 亮 (按壓) | 🔵 藍心跳: 亮",
+        ledPressBlueOff: "🟢 綠燈: 亮 (按壓) | ⚫ 藍心跳: 滅",
+        langBtnText: "繁體中文",
+        chartTraceDelta: "淨動態位移 (Δdyn)",
+        chartTraceRaw: "原始 CVD 差動值 (ΔD)",
+        chartTraceKalman: "卡爾曼估計值 (x_est)",
+        chartTraceBaseline: "非對稱自適應基線"
+      }
+    };
 
     // Chart Setup
     const ctx = document.getElementById('scopeCanvas').getContext('2d');
@@ -327,7 +521,7 @@
         labels: Array(MAX_POINTS).fill(''),
         datasets: [
           {
-            label: 'Net Dynamic Shift (Delta)',
+            label: i18n[currentLang].chartTraceDelta,
             borderColor: '#8B5CF6',
             backgroundColor: 'rgba(139, 92, 246, 0.1)',
             borderWidth: 2.5,
@@ -337,7 +531,7 @@
             data: Array(MAX_POINTS).fill(0)
           },
           {
-            label: 'Raw CVD Diff (Delta D)',
+            label: i18n[currentLang].chartTraceRaw,
             borderColor: '#0EAFE0',
             borderWidth: 1.5,
             pointRadius: 0,
@@ -345,7 +539,7 @@
             data: Array(MAX_POINTS).fill(185)
           },
           {
-            label: 'Kalman Estimate (x_est)',
+            label: i18n[currentLang].chartTraceKalman,
             borderColor: '#10B981',
             borderWidth: 2,
             pointRadius: 0,
@@ -353,7 +547,7 @@
             data: Array(MAX_POINTS).fill(185)
           },
           {
-            label: 'Asymmetric Baseline',
+            label: i18n[currentLang].chartTraceBaseline,
             borderColor: '#FCA600',
             borderWidth: 2,
             borderDash: [5, 5],
@@ -390,6 +584,48 @@
       }
     });
 
+    function applyLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('touch_demo_lang', lang);
+      const t = i18n[lang];
+
+      document.title = t.pageTitle;
+      document.getElementById('brandTitle').innerText = t.brandTitle;
+      document.getElementById('pageSubTitle').innerText = t.subTitle;
+      document.getElementById('scopeTitle').innerText = t.scopeTitle;
+      document.getElementById('rollingWindowText').innerText = t.rollingWindowText;
+      document.getElementById('pauseBtn').innerText = isPaused ? t.resumeScope : t.pauseScope;
+      document.getElementById('resetBtn').innerText = t.resetBtn;
+      document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
+      document.getElementById('decisionTitle').innerText = t.decisionTitle;
+      document.getElementById('metricsTitle').innerText = t.metricsTitle;
+
+      document.getElementById('lblDelta').innerText = t.lblDelta;
+      document.getElementById('lblKalman').innerText = t.lblKalman;
+      document.getElementById('lblBaseline').innerText = t.lblBaseline;
+      document.getElementById('lblRaw').innerText = t.lblRaw;
+      document.getElementById('lblDta').innerText = t.lblDta;
+      document.getElementById('lblConf').innerText = t.lblConf;
+      document.getElementById('lblExec').innerText = t.lblExec;
+      document.getElementById('lblSafety').innerText = t.lblSafety;
+      document.getElementById('valSafety').innerText = t.valSafety;
+      document.getElementById('lblHeartbeat').innerText = t.lblHeartbeat;
+      document.getElementById('lblLeds').innerText = t.lblLeds;
+
+      document.getElementById('langBtnText').innerText = (lang === 'zh') ? '繁體中文 (切換 EN)' : 'English (切換中文)';
+
+      // Update Chart Legends
+      scopeChart.data.datasets[0].label = t.chartTraceDelta;
+      scopeChart.data.datasets[1].label = t.chartTraceRaw;
+      scopeChart.data.datasets[2].label = t.chartTraceKalman;
+      scopeChart.data.datasets[3].label = t.chartTraceBaseline;
+      scopeChart.update();
+    }
+
+    function toggleLanguage() {
+      applyLanguage(currentLang === 'zh' ? 'en' : 'zh');
+    }
+
     function connectWS() {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host || 'localhost:8090';
@@ -397,8 +633,7 @@
 
       ws.onopen = () => {
         document.getElementById('connPill').className = 'conn-status';
-        document.getElementById('connLabel').innerText = 'Connected (8090)';
-        // Initialize Comm
+        document.getElementById('connLabel').innerText = i18n[currentLang].connConnected;
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
           id: rpcId++,
@@ -418,7 +653,7 @@
 
       ws.onclose = () => {
         document.getElementById('connPill').className = 'conn-status disconnected';
-        document.getElementById('connLabel').innerText = 'Disconnected (Reconnecting...)';
+        document.getElementById('connLabel').innerText = i18n[currentLang].connDisconnected;
         setTimeout(connectWS, 1500);
       };
 
@@ -430,7 +665,7 @@
     function updateDashboard(vars) {
       if (isPaused) return;
 
-      let touch = 0, delta = 0, x_est = 185, base = 185, raw = 185, conf = 0, cls = 0, exec_us = 32;
+      let touch = 0, delta = 0, x_est = 185, base = 185, raw = 185, conf = 0, cls = 0, exec_us = 32, heartbeat = 0;
 
       for (let v of vars) {
         if (v.name === 'g_touch_active') touch = Number(v.value);
@@ -441,6 +676,7 @@
         if (v.name === 'confidence') conf = Number(v.value);
         if (v.name === 'predicted_class') cls = Number(v.value);
         if (v.name === 'g_exec_time_us') exec_us = Number(v.value);
+        if (v.name === 'g_heartbeat_state') heartbeat = Number(v.value);
       }
 
       // Update Chart Series
@@ -467,32 +703,61 @@
       document.getElementById('confFill').style.width = Math.round(conf * 100) + '%';
       document.getElementById('valExec').innerText = exec_us + ' \u03BCs';
 
+      // 0.2 Hz Heartbeat Indicator Synchronization
+      const t = i18n[currentLang];
+      const hbPill = document.getElementById('heartbeatPill');
+      const hbLabel = document.getElementById('heartbeatLabel');
+      const valHeartbeat = document.getElementById('valHeartbeat');
+
+      if (heartbeat === 1) {
+        hbPill.className = 'heartbeat-pill active';
+        hbLabel.innerText = t.heartbeatActive;
+        valHeartbeat.innerText = t.hbActiveText;
+        valHeartbeat.style.color = 'var(--nxp-blue)';
+      } else {
+        hbPill.className = 'heartbeat-pill';
+        hbLabel.innerText = t.heartbeatIdle;
+        valHeartbeat.innerText = t.hbIdleText;
+        valHeartbeat.style.color = 'var(--text-muted)';
+      }
+
+      // Hardware LEDs Stat Row
+      const valLeds = document.getElementById('valLeds');
+      if (touch === 1) {
+        valLeds.innerText = (heartbeat === 1) ? t.ledPressBlueOn : t.ledPressBlueOff;
+        valLeds.style.color = 'var(--nxp-green)';
+      } else {
+        valLeds.innerText = (heartbeat === 1) ? t.ledIdleBlueOn : t.ledIdleBlueOff;
+        valLeds.style.color = '#F87171';
+      }
+
+      // Decision Card
       const touchCard = document.getElementById('touchCard');
       const touchText = document.getElementById('touchStatusText');
       const classBadge = document.getElementById('classBadge');
 
       if (cls === 3) {
         touchCard.className = 'card indicator-card water';
-        touchText.innerText = 'WATER DROPLET REJECTED';
+        touchText.innerText = t.statusWater;
         touchText.style.color = 'var(--nxp-orange)';
         classBadge.className = 'badge badge-water';
-        classBadge.innerText = 'CLASS: WATER DROPLET';
+        classBadge.innerText = t.classWater;
       } else if (touch === 1) {
         touchCard.className = 'card indicator-card touched';
-        touchText.innerText = 'VALID TOUCH CONFIRMED';
-        touchText.style.color = 'var(--nxp-blue)';
-        classBadge.className = 'badge badge-bare';
-        classBadge.innerText = 'CLASS: BARE FINGER';
-      } else {
-        touchCard.className = 'card indicator-card';
-        touchText.innerText = 'IDLE / QUIESCENT';
+        touchText.innerText = t.statusTouched;
         touchText.style.color = 'var(--nxp-green)';
+        classBadge.className = 'badge badge-bare';
+        classBadge.innerText = t.classBare;
+      } else {
+        touchCard.className = 'card indicator-card idle';
+        touchText.innerText = t.statusIdle;
+        touchText.style.color = 'var(--nxp-red)';
         classBadge.className = 'badge badge-idle';
-        classBadge.innerText = 'CLASS: IDLE';
+        classBadge.innerText = t.classIdle;
       }
     }
 
-    // Polling Loop: Query FreeMASTER variables over WebSocket at 40 Hz
+    // Polling Loop: Query FreeMASTER variables over WebSocket at 40 Hz (25 ms)
     setInterval(() => {
       if (isPaused) return;
 
@@ -514,6 +779,7 @@
         const base = 185;
         const x_est = base + delta;
         const raw = Math.round(x_est);
+        const heartbeat = (Math.floor(Date.now() / 2500) % 2 === 0) ? 1 : 0; // 0.2 Hz: 2.5s on, 2.5s off
         updateDashboard([
           { name: 'g_touch_active', value: touch },
           { name: 'dynamic_delta', value: delta },
@@ -522,32 +788,37 @@
           { name: 'raw_diff', value: raw },
           { name: 'confidence', value: conf },
           { name: 'predicted_class', value: cls },
-          { name: 'g_exec_time_us', value: 32 }
+          { name: 'g_exec_time_us', value: 32 },
+          { name: 'g_heartbeat_state', value: heartbeat }
         ]);
       } else if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
           id: rpcId++,
           method: 'ReadMultipleVariables',
-          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us']]
+          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us', 'g_heartbeat_state']]
         }));
       }
     }, 25);
 
     function togglePause() {
       isPaused = !isPaused;
-      document.getElementById('pauseBtn').innerText = isPaused ? 'Resume Scope' : 'Pause Scope';
+      const t = i18n[currentLang];
+      document.getElementById('pauseBtn').innerText = isPaused ? t.resumeScope : t.pauseScope;
     }
 
     function toggleSim() {
       isSimMode = !isSimMode;
-      document.getElementById('simBtn').innerText = isSimMode ? 'Use Hardware (COM5)' : 'Toggle Demo Mode';
+      const t = i18n[currentLang];
+      document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
     }
 
     function resetZoom() {
       scopeChart.reset();
     }
 
+    // Initialize with selected language and connect WebSocket
+    applyLanguage(currentLang);
     connectWS();
   </script>
 </body>

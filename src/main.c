@@ -39,6 +39,7 @@ volatile uint32_t                   g_exec_time_us = 0U;
 volatile boolean                    g_baseline_touch = FALSE;
 volatile boolean                    g_tinyml_touch   = FALSE;
 volatile boolean                    g_touch_active   = FALSE;
+volatile uint8_t                    g_heartbeat_state = 0U;
 
 static void SimpleDelay(uint32_t loops)
 {
@@ -249,9 +250,9 @@ int main(void)
     Telemetry_SendString("[*] SysTick Hardware 15.000 ms Zero-Jitter Frame Synchronizer Activated.\r\n");
 
     /* 14. Live Real-Time Continuous Acquisition, Filtering, Baseline, TinyML & Diag Loop */
-    Telemetry_SendString("\r\n[*] Telemetry CSV Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Status>\r\n");
+    Telemetry_SendString("\r\n[*] Telemetry CSV Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status>\r\n");
     Telemetry_SendString("[*] Entering Continuous Touch Sensing & ASIL-B Safety Diag Loop (Touch SW7 to test)...\r\n");
-    Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
+    Touch_SetStatusLeds(TRUE, FALSE, FALSE); /* Red LED = Untouched / Idle */
 
     while (1)
     {
@@ -319,9 +320,6 @@ int main(void)
             /* Hard Safety Interlock: When any hardware defect/short is active,
              * unconditionally force touch to FALSE to eliminate false triggers */
             g_touch_active = FALSE;
-
-            /* Turn ON Red LED to indicate safety fault state */
-            Touch_SetStatusLeds(TRUE, FALSE, FALSE);
         }
         else
         {
@@ -329,31 +327,27 @@ int main(void)
 
             if (g_touch_active)
             {
-                /* Active Verified Touch: Blue LED ON, Green/Red OFF */
-                Touch_SetStatusLeds(FALSE, FALSE, TRUE);
-
                 if (dynamic_delta >= (float)M1_TOUCH_DELTA_MIN_LSB)
                 {
                     g_m1_report.criteria_3_gain_pass = TRUE;
                     g_m1_report.touch_delta_shift = (int16_t)dynamic_delta;
                 }
             }
-            else
-            {
-                /* Released / Healthy / Quiescent: Green LED ON, Blue/Red OFF */
-                Touch_SetStatusLeds(FALSE, TRUE, FALSE);
-            }
         }
 
-#if defined(WATER_TEST_MODE) || defined(CUE_TEST_MODE)
-        /* Temporary cue schedule (66.7 Hz): Green=idle/release, Blue=press and hold (4 s) x3, Red=done */
-        if ((g_cycle_counter >= 667U) && (g_cycle_counter < 2267U))
-        {
-            Touch_SetStatusLeds(FALSE, (((g_cycle_counter - 667U) % 533U) >= 267U), (((g_cycle_counter - 667U) % 533U) < 267U));
-        }
-        else if ((g_cycle_counter >= 2267U) && (g_cycle_counter < 2400U)) { Touch_SetStatusLeds(TRUE,  FALSE, FALSE); }
-        else                                                              { Touch_SetStatusLeds(FALSE, TRUE,  FALSE); }
-#endif
+        /* 0.2 Hz Heartbeat (5.0 s period = 333 frames @ 15.0 ms frame rate: 2.5s ON, 2.5s OFF) */
+        g_heartbeat_state = ((g_cycle_counter % 333U) < 167U) ? 1U : 0U;
+
+        /* Hardware Status LEDs:
+         * - Idle (not pressed): Red LED ON, Green LED OFF
+         * - Pressed: Red LED OFF, Green LED ON
+         * - Heartbeat: Blue LED blinks at 0.2 Hz
+         */
+        boolean led_red   = !g_touch_active;
+        boolean led_green = g_touch_active;
+        boolean led_blue  = (g_heartbeat_state != 0U);
+
+        Touch_SetStatusLeds(led_red, led_green, led_blue);
 
         /* Compute execution time in microseconds using 48 MHz SysTick CVR */
         uint32_t end_cvr = S32_SysTick->CVR;
@@ -361,7 +355,7 @@ int main(void)
         g_exec_time_us = elapsed_ticks / 48U;
 
         /* Real-Time Continuous High-Resolution Telemetry Stream (66.7 Hz, 15.0 ms Frame Rate)
-         * String format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Status> */
+         * String format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status> */
         Telemetry_SendString("D,");
         Telemetry_SendUInt(g_cycle_counter);
         Telemetry_SendString(",");
@@ -384,6 +378,8 @@ int main(void)
         Telemetry_SendUInt(g_touch_active ? 1U : 0U);
         Telemetry_SendString(",");
         Telemetry_SendUInt(g_exec_time_us);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt(g_heartbeat_state);
         Telemetry_SendString(g_touch_active ? ",TOUCH\r\n" : ",IDLE\r\n");
 
         /* Hardware-Locked Exact 15.000 ms Frame Synchronization via SysTick COUNTFLAG */

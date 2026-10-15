@@ -65,6 +65,11 @@
       "addr": 536839556,
       "type": "float",
       "size": 4
+    },
+    {
+      "name": "g_heartbeat_state",
+      "type": "uint",
+      "size": 1
     }
   ]
 }
