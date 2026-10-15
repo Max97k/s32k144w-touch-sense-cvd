@@ -26,7 +26,7 @@
 - **更正**：M2～M5 先前是以 `[SIM]` 結果簽收。真實板子的手指訊號約 **+1400～+2700 LSB**（約為假設的 10 倍），部分模擬數字在硬體上不成立（例如靜態 `x_est` 雜訊實測 1.6～2.3 LSB，高於 M2 目標 1.5；先前 0.103 LSB 為模擬值）。
 - **已有真實資料支持**：靜態工作點（M1）、按壓檢測（碰到後 13～16 ms 判定、放開 -30～+60 ms 解除）、靜態無誤觸。
 - **未通過 / 未驗證**：水滴會誤觸（3 次水滴共 45 幀被判成觸控）；手套無真實資料；單次執行時間實測約 210 µs（目標 ≤ 60 µs）；VLPS 待機電流與 12 小時燒機尚未執行。
-- **真實資料位置**：`tests/m_live_*.csv`、`tests/m_press_release_test.csv`、`tests/m_water_test.csv`、`m1_baseline_100_samples.csv`。
+- **真實資料位置**：`data/hardware/m_live_*.csv`、`data/hardware/m_press_release_test.csv`、`data/hardware/m_water_test.csv`、`data/hardware/m1_baseline_100_samples.csv`。
 - `tests/test_m2~m5_contract.py` 目前仍複製舊版 C 邏輯，尚未對齊最新修改，不能代表韌體。
 
 ---
@@ -159,11 +159,11 @@
   - 水滴噴灑與水霧衝擊（20 次試驗）：誤報率 FPR = 0.0%（量化標準 $= 0\%$）
   - 邊緣掠過與瞬態劃過（20 次試驗）：誤報率 FPR = 0.0%（量化標準 $= 0\%$）
   - 平均觸控觸發延遲：$39.9\text{ ms}$（量化標準 $\le 60\sim 90\text{ ms}$）
-  - 驗證資料集產出：[`m4_envelope_dataset.csv`](m4_envelope_dataset.csv)
+  - 驗證資料集產出：[`data/simulated/m4_envelope_dataset.csv`](data/simulated/m4_envelope_dataset.csv)
 - **實體 EVB 硬體實測驗證**：
   - 0 編譯錯誤、0 警告（GCC 10.2），成功燒錄至 XS32K14WEVB-Q064。
-  - 即時 66.8 Hz 串流遙測記錄：[`tests/m_post_expert_test.csv`](tests/m_post_expert_test.csv)。
-  - **42 秒燈號提示 3 次實體按壓驗證 (`tests/m_finger_press_expert_v4.csv`)**：
+  - 即時 66.8 Hz 串流遙測記錄：[`data/hardware/m_post_expert_test.csv`](data/hardware/m_post_expert_test.csv)。
+  - **42 秒燈號提示 3 次實體按壓驗證 (`data/hardware/m_finger_press_expert_v4.csv`)**：
     - 第 1 次按壓（4 秒）：反應延遲 $166\text{ ms}$，按住實體維持率 **$96.8\%$**，最大動態位移 $+1782.8\text{ LSB}$。
     - 第 2 次按壓（4 秒）：反應延遲 $133\text{ ms}$，按住實體維持率 **$99.6\%$**（幾乎 100% 滿載），最大動態位移 $+1502.6\text{ LSB}$。
     - 第 3 次按壓（4 秒）：反應延遲 $291\text{ ms}$，按住實體維持率 **$86.9\%$**，最大動態位移 $+1473.9\text{ LSB}$。
@@ -187,6 +187,10 @@
 ```
 .
 ├── board/                         # 引腳初始化配置 (PORT_CI)
+├── data/                          # 數據集儲存庫
+│   ├── hardware/                  # 實體板子 UART 遙測捕獲數據 (.csv)
+│   └── simulated/                 # 契約驗證合成數據集 (.csv)
+├── freemaster/                    # FreeMASTER Lite 1.5.1 儀表板與橋接腳本
 ├── generate/                      # RTD 模組配置 (Clock, OsIf, MEX)
 ├── include/                       # 應用層標頭檔
 │   ├── touch_cvd.h                # M1: CVD 觸控驅動 API 與資料結構
@@ -209,16 +213,17 @@
 │   ├── touch_diag.c               # 硬體缺陷診斷、防抖與安全互鎖
 │   └── uart_telemetry.c           # 分相 115200 bps 遙測數據輸出
 ├── tests/                         # 自動化 Python 契約驗證測試套件
+│   ├── test_m1_contract.py        # M1: 實測基線靜態分佈檢驗
 │   ├── test_m2_contract.py        # M2: 濾波鏈降噪、SNR、EFT 抗擾
 │   ├── test_m3_contract.py        # M3: 帶手開機、慢速逼近、溫漂追蹤
 │   ├── test_m4_contract.py        # M4: 混淆矩陣、水滴拒斥、手套偵測
 │   └── test_m5_contract.py        # M5: 故障注入、反應恢復延遲、安全互鎖
 ├── tools/
+│   ├── analyze_press.py           # 實體按壓維持率與時序評估
+│   ├── capture_telemetry.py       # 自動採集 100 點數據與 M1 驗收報告
 │   ├── flash_target.py            # 自動化 OpenSDA 燒錄腳本
-│   └── capture_telemetry.py       # 自動採集 100 點數據與 M1 驗收報告
-├── m1_baseline_100_samples.csv    # M1 實測 100 筆硬體基準數據
-├── m4_water_rejection_log.csv     # M4 水滴抗擾驗證記錄
-├── m5_fault_injection_log.csv     # M5 故障注入測試記錄
+│   └── record_live.py             # 實體即時 UART 遙測錄製工具
+├── run_freemaster.bat             # FreeMASTER 一鍵啟動腳本
 ├── s32k144w_touch_cvd.mex         # S32 Configuration Tools 專案檔
 ├── README.md                      # 英文規格書
 └── README_zh.md                   # 繁體中文完整技術規格書

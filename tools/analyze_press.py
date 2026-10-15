@@ -1,6 +1,10 @@
+import os
 import csv
 
-with open('tests/m_finger_press_expert_v4.csv', 'r') as f:
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_PATH = os.path.join(REPO_ROOT, "data", "hardware", "m_finger_press_expert_v4.csv")
+
+with open(CSV_PATH, 'r') as f:
     rows = list(csv.DictReader(f))
 
 cues = [

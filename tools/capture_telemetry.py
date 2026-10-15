@@ -83,11 +83,14 @@ def main():
         print(f"   - Untouched Delta Mean: {mean_delta:.1f} LSB")
 
         # Save to CSV
-        with open("m1_baseline_100_samples.csv", "w") as f:
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        out_csv = os.path.join(repo_root, "data", "hardware", "m1_baseline_100_samples.csv")
+        os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+        with open(out_csv, "w") as f:
             f.write("Index,Sample_A_LSB,Sample_B_LSB,Delta_D_LSB\n")
             for r in csv_records:
                 f.write(f"{r[0]},{r[1]},{r[2]},{r[3]}\n")
-        print(f"[+] 100-sample raw dataset exported to m1_baseline_100_samples.csv")
+        print(f"[+] 100-sample raw dataset exported to {out_csv}")
 
 if __name__ == "__main__":
     main()

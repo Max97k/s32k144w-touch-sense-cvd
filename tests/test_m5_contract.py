@@ -439,7 +439,7 @@ def main():
     # ----------------------------------------------------------------------------------
     # Test 9: Export Fault Injection Test Log CSV
     # ----------------------------------------------------------------------------------
-    csv_path = os.path.join(REPO_ROOT, "m5_fault_injection_log.csv")
+    csv_path = os.path.join(REPO_ROOT, "data", "simulated", "m5_fault_injection_log.csv")
     with open(csv_path, "w", encoding="utf-8") as f:
         f.write("Cycle,TestScenario,Sample_A_SE15,Sample_B_SE14,BalanceDiff_R525,VREFH_mV,ActiveFaultMask,IsHealthy\n")
         for r in log_records:

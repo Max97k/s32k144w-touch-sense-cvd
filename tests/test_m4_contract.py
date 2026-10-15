@@ -38,7 +38,7 @@ TINYML_C_PATH = os.path.join(REPO_ROOT, "src", "touch_tinyml.c")
 TINYML_H_PATH = os.path.join(REPO_ROOT, "include", "touch_tinyml.h")
 BASELINE_C_PATH = os.path.join(REPO_ROOT, "src", "touch_baseline.c")
 MAIN_C_PATH = os.path.join(REPO_ROOT, "src", "main.c")
-CSV_OUT_PATH = os.path.join(REPO_ROOT, "m4_envelope_dataset.csv")
+CSV_OUT_PATH = os.path.join(REPO_ROOT, "data", "simulated", "m4_envelope_dataset.csv")
 
 
 class PythonTinyMLClassifier:

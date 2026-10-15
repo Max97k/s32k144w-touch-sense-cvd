@@ -10,7 +10,7 @@ import time
 import serial
 
 secs = float(sys.argv[1]) if len(sys.argv) > 1 else 30.0
-out = sys.argv[2] if len(sys.argv) > 2 else "tests/m_live_recording.csv"
+out = sys.argv[2] if len(sys.argv) > 2 else "data/hardware/m_live_recording.csv"
 HDR = "cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,status"
 
 ser = serial.Serial("COM5", 115200, timeout=0.2)

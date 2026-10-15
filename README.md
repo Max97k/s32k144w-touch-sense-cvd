@@ -82,7 +82,7 @@ Every claim below is tagged with how it was verified:
   - [x] 3-step confidence sliding window hysteresis (0.64 trigger / 0.38 release) with soft-margin scoring. [HW & SIM]
   - [x] Zone 2 8-second approach timeout anti-lockup implemented in `touch_baseline.c`. [HW & SIM]
   - [x] `tests/test_m4_contract.py`: 140-trial validation passes 100% (Bare Finger TPR 100%, Glove/Acrylic TPR 100%, Water FPR 0%, Swipe FPR 0%, Reaction Latency 39.9 ms). [SIM]
-  - [x] Hardware verification: builds with 0 errors/0 warnings in GCC 10.2, flashed to EVB, streaming 66.8 Hz live telemetry (`tests/m_post_expert_test.csv`). [HW]
+  - [x] Hardware verification: builds with 0 errors/0 warnings in GCC 10.2, flashed to EVB, streaming 66.8 Hz live telemetry (`data/hardware/m_post_expert_test.csv`). [HW]
 - [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only**
   - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
   - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
@@ -102,17 +102,17 @@ All files are raw UART captures from the real board (66.7 Hz, one frame per 15 m
 
 | File | What it is |
 | :--- | :--- |
-| [`m1_baseline_100_samples.csv`](m1_baseline_100_samples.csv) | M1: 100 untouched A/B/ΔD samples |
-| [`tests/m_live_recording.csv`](tests/m_live_recording.csv) | 30 s, first live recording (only one brief touch) - exposed the missed-touch problem |
-| [`tests/m_live_random_poke.csv`](tests/m_live_random_poke.csv) | 60 s random poking, **before** fixes (touch flagged on only 2% of contact frames) |
-| [`tests/m_live_random_poke_v2.csv`](tests/m_live_random_poke_v2.csv) | 60 s random poking after Kalman fast-path + amplitude-relative thresholds |
-| [`tests/m_live_random_poke_v3.csv`](tests/m_live_random_poke_v3.csv) | 60 s random poking after dropout hold (8/8 contacts detected) |
-| [`tests/m_press_release_test.csv`](tests/m_press_release_test.csv) | 40 s, LED-cued: 3 x (4 s press, 4 s release) with bare finger |
-| [`tests/m_water_test.csv`](tests/m_water_test.csv) | 100 s, LED-cued: prep / water drops / wipe dry (water test) |
-| [`tests/m_post_expert_test.csv`](tests/m_post_expert_test.csv) | 5 s post-expert integration live UART hardware capture @ 66.8 Hz |
-| [`tests/m_finger_press_expert_v4.csv`](tests/m_finger_press_expert_v4.csv) | **[HW]** 42 s LED-cued 3-trial press validation after water/swipe guards & 4-frame hold (96.8%~99.6% solid duty, 0 false triggers) |
-| [`m4_envelope_dataset.csv`](m4_envelope_dataset.csv) | **[SIM]** M4 140-trial validation dataset (Bare finger, 2mm acrylic / glove, water droplets, edge swipes) |
-| [`m4_tinyml_multiclass_dataset.csv`](m4_tinyml_multiclass_dataset.csv), [`m5_fault_injection_log.csv`](m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
+| [`data/hardware/m1_baseline_100_samples.csv`](data/hardware/m1_baseline_100_samples.csv) | M1: 100 untouched A/B/ΔD samples |
+| [`data/hardware/m_live_recording.csv`](data/hardware/m_live_recording.csv) | 30 s, first live recording (only one brief touch) - exposed the missed-touch problem |
+| [`data/hardware/m_live_random_poke.csv`](data/hardware/m_live_random_poke.csv) | 60 s random poking, **before** fixes (touch flagged on only 2% of contact frames) |
+| [`data/hardware/m_live_random_poke_v2.csv`](data/hardware/m_live_random_poke_v2.csv) | 60 s random poking after Kalman fast-path + amplitude-relative thresholds |
+| [`data/hardware/m_live_random_poke_v3.csv`](data/hardware/m_live_random_poke_v3.csv) | 60 s random poking after dropout hold (8/8 contacts detected) |
+| [`data/hardware/m_press_release_test.csv`](data/hardware/m_press_release_test.csv) | 40 s, LED-cued: 3 x (4 s press, 4 s release) with bare finger |
+| [`data/hardware/m_water_test.csv`](data/hardware/m_water_test.csv) | 100 s, LED-cued: prep / water drops / wipe dry (water test) |
+| [`data/hardware/m_post_expert_test.csv`](data/hardware/m_post_expert_test.csv) | 5 s post-expert integration live UART hardware capture @ 66.8 Hz |
+| [`data/hardware/m_finger_press_expert_v4.csv`](data/hardware/m_finger_press_expert_v4.csv) | **[HW]** 42 s LED-cued 3-trial press validation after water/swipe guards & 4-frame hold (96.8%~99.6% solid duty, 0 false triggers) |
+| [`data/simulated/m4_envelope_dataset.csv`](data/simulated/m4_envelope_dataset.csv) | **[SIM]** M4 140-trial validation dataset (Bare finger, 2mm acrylic / glove, water droplets, edge swipes) |
+| [`data/simulated/m4_tinyml_multiclass_dataset.csv`](data/simulated/m4_tinyml_multiclass_dataset.csv), [`data/simulated/m5_fault_injection_log.csv`](data/simulated/m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
 
 To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Green = idle, Blue = press/drop, Red = done).
 
@@ -142,6 +142,10 @@ To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Gr
 ```
 .
 ├── board/                         # Pin initialization configuration (PORT_CI)
+├── data/                          # Telemetry and validation datasets
+│   ├── hardware/                  # Real target UART telemetry captures (.csv)
+│   └── simulated/                 # Contract verification synthetic datasets (.csv)
+├── freemaster/                    # FreeMASTER Lite 1.5.1 oscilloscope dashboard
 ├── generate/                      # RTD module configuration (Clock, OsIf, MEX)
 ├── include/                       # Public Application Headers
 │   ├── touch_cvd.h                # M1: CVD physical layer acquisition & calibration
@@ -161,11 +165,17 @@ To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Gr
 │   ├── touch_diag.c               # Hardware defect diagnostics & auto-recovery
 │   └── uart_telemetry.c           # Phased 115200 bps telemetry output
 ├── tests/                         # Automated Python Contract Verification Suites
+│   ├── test_m1_contract.py        # M1: Untouched baseline distribution
 │   ├── test_m2_contract.py        # M2: Filter chain, noise sigma, EFT immunity
 │   ├── test_m3_contract.py        # M3: Touch-on-boot, slow approach, thermal drift
 │   ├── test_m4_contract.py        # M4: Confusion matrix, water spray, glove detection
 │   └── test_m5_contract.py        # M5: Fault injection, fail-safe interlock, recovery
-├── tools/                         # Automated flashing and capture scripts
+├── tools/                         # Automated flashing, live recording and analysis tools
+│   ├── analyze_press.py           # Hardware cued press validation report
+│   ├── capture_telemetry.py       # 100-sample raw dataset capture tool
+│   ├── flash_target.py            # OpenSDA PEMicro automated flash programmer
+│   └── record_live.py             # Live UART streaming telemetry recorder
+├── run_freemaster.bat             # One-click FreeMASTER Lite dashboard launcher
 ├── s32k144w_touch_cvd.mex         # S32 Configuration Tools project file
 ├── README.md                      # English specification & progress documentation
 └── README_zh.md                   # 繁體中文完整技術規格書與進度報告
