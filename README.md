@@ -195,6 +195,54 @@ python ../tests/test_m5_contract.py
 
 ---
 
+## FreeMASTER Lite 1.5.1 Live Oscilloscope & AI MCP Integration
+
+The project includes full integration with **NXP FreeMASTER Lite 1.5.1**, providing both an automotive HTML5 real-time oscilloscope dashboard for human engineers and programmatic JSON-RPC / MCP bindings for autonomous AI agent inspection.
+
+### 1. Architecture Overview
+
+```
+ [ S32K144W Hardware EVB ]
+            │ (PTC7 UART TX @ 115200 bps, 66.7 Hz)
+            ▼
+ [ telemetry_bridge.py ] ───── (WebSocket ws://localhost:8090) ─────► [ FreeMASTER Lite 1.5.1 ]
+                                                                             │         │
+                                     ┌───────────────────────────────────────┘         │
+                                     ▼                                                 ▼
+                        [ touch_scope.html Dashboard ]                    [ NXP FreeMASTER MCP ]
+                        - 4-Channel Live Rolling Scope                    - ws.connect()
+                        - Glowing Touch Status Pill                       - rpc.StartComm()
+                        - TinyML Confidence Gauge                         - rpc.ReadVariable()
+                        - 32 µs MCU Execution Badge                       - rpc.WriteVariable()
+```
+
+### 2. Monitored Variables & Memory Mappings
+
+| Variable Name | S32K144W RAM Addr | Type | Size | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `g_touch_active` | `0x1FFF8DEA` | `uint8` | 1 B | Verified Touch State (1 = Pressed, 0 = Released) |
+| `dynamic_delta` | `0x1FFF8CF4` | `float` | 4 B | Baseline-Compensated Net Shift ($x_{\text{est}} - \text{baseline}$) |
+| `kalman_x_est` | `0x1FFF8CC4` | `float` | 4 B | Milestone 2 Adaptive 1D Kalman Output |
+| `baseline_val` | `0x1FFF8CE0` | `float` | 4 B | Milestone 3 4-Zone Asymmetric Dynamic Baseline |
+| `raw_diff` | `0x1FFF8DC8` | `int16` | 2 B | Raw Bipolar Differential CVD Synthesis ($\Delta D$) |
+| `confidence` | `0x1FFF8D8C` | `float` | 4 B | Milestone 4 TinyML 3-Step Smoothed Confidence |
+| `predicted_class` | `0x1FFF8D90` | `uint32` | 4 B | Classification Category (0: Idle, 1: Bare, 2: Glove, 3: Water, 4: Swipe) |
+| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | Real-time Core Execution Latency (typically 32 µs) |
+
+### 3. One-Click Quick Start
+
+To launch both FreeMASTER Lite and the web oscilloscope dashboard, simply double-click:
+```cmd
+run_freemaster.bat
+```
+This automatically boots FreeMASTER Lite on port `8090`, initiates the telemetry bridge on `COM5`, and opens your default browser directly to:
+```
+http://localhost:8090/touch_scope.html
+```
+*(If the board is unplugged, the dashboard provides a one-click "Toggle Demo Mode" to preview all waveforms in real time.)*
+
+---
+
 ## License
 
 BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.

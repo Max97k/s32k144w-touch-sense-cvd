@@ -269,7 +269,55 @@ python tests/test_m5_contract.py
 
 ---
 
-## 10. 商標與版權宣告
+## 10. FreeMASTER Lite 1.5.1 即時示波器與 AI MCP 整合
+
+本專案已全面整合 **NXP FreeMASTER Lite 1.5.1**，提供雙重觀測與控制能力：人類工程師專用的車規級 HTML5 即時動態示波器儀表板，以及 AI Agent 專用的 JSON-RPC / MCP 程式化存取架構。
+
+### 架構與資料流
+
+```
+ [ S32K144W 實體開發板 ]
+            │ (PTC7 UART TX @ 115200 bps, 66.7 Hz 高速訊框)
+            ▼
+ [ telemetry_bridge.py ] ───── (WebSocket ws://localhost:8090) ─────► [ FreeMASTER Lite 1.5.1 ]
+                                                                             │         │
+                                     ┌───────────────────────────────────────┘         │
+                                     ▼                                                 ▼
+                        [ touch_scope.html 即時示波器 ]                   [ NXP FreeMASTER MCP ]
+                        - 4 通道即時動態滾動波形                         - ws.connect() 連線
+                        - 霓虹動態觸控狀態指示燈                         - rpc.StartComm() 啟動通訊
+                        - TinyML 信心度進度條環                         - rpc.ReadVariable() 即時讀取
+                        - 32 µs MCU 執行耗時監測                         - rpc.WriteVariable() 線上調參
+```
+
+### 監控變數與記憶體對應
+
+| 變數名稱 | S32K144W SRAM 位址 | 類型 | 長度 | 說明 |
+| :--- | :---: | :---: | :---: | :--- |
+| `g_touch_active` | `0x1FFF8DEA` | `uint8` | 1 B | 觸控狀態確認旗標（1: 觸控, 0: 待機釋放） |
+| `dynamic_delta` | `0x1FFF8CF4` | `float` | 4 B | 基線補償後淨位移量（$x_{\text{est}} - \text{baseline}$） |
+| `kalman_x_est` | `0x1FFF8CC4` | `float` | 4 B | M2 自適應一維卡爾曼濾波估計值 |
+| `baseline_val` | `0x1FFF8CE0` | `float` | 4 B | M3 四區段非對稱動態基線追蹤值 |
+| `raw_diff` | `0x1FFF8DC8` | `int16` | 2 B | 雙極性差分 CVD 原始合成值（$\Delta D$） |
+| `confidence` | `0x1FFF8D8C` | `float` | 4 B | M4 TinyML 三階平滑後信心度（0.0 ~ 1.0） |
+| `predicted_class` | `0x1FFF8D90` | `uint32` | 4 B | 物理事件分類（0: Idle, 1: Bare, 2: Glove, 3: Water, 4: Swipe） |
+| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | MCU 核心演算法即時耗時（通常 32 µs） |
+
+### 一鍵啟動方式
+
+在 Windows 檔案總管中直接雙擊執行：
+```cmd
+run_freemaster.bat
+```
+系統會自動：
+1. 啟動 FreeMASTER Lite 1.5.1 服務（Port 8090）。
+2. 啟動串列埠遙測橋接器（自動監聽 `COM5 @ 115200`）。
+3. 自動以預設瀏覽器開啟車規級即時示波器：`http://localhost:8090/touch_scope.html`。
+*(若開發板尚未接上，儀表板提供「Toggle Demo Mode」按鈕可立即切換為高保真動態波形預覽。)*
+
+---
+
+## 11. 商標與版權宣告
 
 * 本專案所有演算法與軟體原始碼版權均歸 **Max97k** 所有（基於 BSD-3-Clause 授權）。
 * Copyright (c) 2026, Max97k. All rights reserved.

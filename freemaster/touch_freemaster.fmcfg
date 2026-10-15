@@ -1,0 +1,70 @@
+{
+  "port": 8090,
+  "web_root": "web",
+  "mock_api": "touch_bridge_api.js",
+  "open_path": "/touch_scope.html",
+  "connections": [
+    {
+      "name": "S32K144W_OpenSDA",
+      "description": "S32K144W CVD Capacitive Touch Sensing Engine",
+      "connection_string": "HCS;",
+      "elf": "../Debug_FLASH/s32k144w-touch-sense-cvd.elf"
+    }
+  ],
+  "variables": [
+    {
+      "name": "g_touch_active",
+      "addr": 536839658,
+      "type": "uint",
+      "size": 1
+    },
+    {
+      "name": "g_exec_time_us",
+      "addr": 536839660,
+      "type": "uint",
+      "size": 4
+    },
+    {
+      "name": "raw_diff",
+      "addr": 536839624,
+      "type": "int",
+      "size": 2
+    },
+    {
+      "name": "kalman_x_est",
+      "addr": 536839364,
+      "type": "float",
+      "size": 4
+    },
+    {
+      "name": "baseline_val",
+      "addr": 536839392,
+      "type": "float",
+      "size": 4
+    },
+    {
+      "name": "dynamic_delta",
+      "addr": 536839412,
+      "type": "float",
+      "size": 4
+    },
+    {
+      "name": "confidence",
+      "addr": 536839564,
+      "type": "float",
+      "size": 4
+    },
+    {
+      "name": "predicted_class",
+      "addr": 536839568,
+      "type": "uint",
+      "size": 4
+    },
+    {
+      "name": "dta_threshold",
+      "addr": 536839556,
+      "type": "float",
+      "size": 4
+    }
+  ]
+}

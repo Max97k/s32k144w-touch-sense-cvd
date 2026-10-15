@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S32K144W CVD Touch Sensing Engine | FreeMASTER Live Scope</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #0B0F19;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --nxp-blue: #0EAFE0;
+      --nxp-orange: #FCA600;
+      --nxp-green: #10B981;
+      --nxp-red: #EF4444;
+      --nxp-purple: #8B5CF6;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at 50% 0%, #151D2F 0%, var(--bg-base) 70%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 14px 24px;
+      margin-bottom: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #FCA600, #0EAFE0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-title {
+      font-size: 15px;
+      color: var(--text-muted);
+      border-left: 1px solid rgba(255, 255, 255, 0.15);
+      padding-left: 14px;
+    }
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--nxp-green);
+      padding: 6px 14px;
+      border-radius: 20px;
+      transition: all 0.3s;
+    }
+    .conn-status.disconnected {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--nxp-red);
+    }
+    .conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chart-box {
+      height: 480px;
+      position: relative;
+    }
+    .indicator-card {
+      text-align: center;
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      transition: all 0.25s ease;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .indicator-card.touched {
+      background: rgba(14, 175, 224, 0.18);
+      border-color: var(--nxp-blue);
+      box-shadow: 0 0 30px rgba(14, 175, 224, 0.35);
+    }
+    .indicator-card.water {
+      background: rgba(245, 158, 11, 0.18);
+      border-color: var(--nxp-orange);
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
+    }
+    .indicator-text {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-top: 6px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 14px;
+    }
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    .stat-label {
+      color: var(--text-muted);
+    }
+    .stat-value {
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+    }
+    .confidence-bar-bg {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      height: 12px;
+      width: 100%;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .confidence-bar-fill {
+      background: linear-gradient(90deg, var(--nxp-blue), var(--nxp-green));
+      height: 100%;
+      width: 0%;
+      transition: width 0.15s ease;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+    .controls-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--nxp-blue);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-bare { background: rgba(14, 175, 224, 0.2); color: var(--nxp-blue); border: 1px solid var(--nxp-blue); }
+    .badge-water { background: rgba(245, 158, 11, 0.2); color: var(--nxp-orange); border: 1px solid var(--nxp-orange); }
+    .badge-idle { background: rgba(16, 185, 129, 0.2); color: var(--nxp-green); border: 1px solid var(--nxp-green); }
+    .badge-swipe { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <div class="brand">
+      <div class="brand-logo">NXP FreeMASTER Lite</div>
+      <div class="brand-title">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
+    </div>
+    <div class="conn-status" id="connPill">
+      <div class="conn-dot" id="connDot"></div>
+      <span id="connLabel">Connecting...</span>
+    </div>
+  </div>
+
+  <div class="grid-container">
+    <!-- Main Oscilloscope Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
+        <div style="font-size: 12px; font-weight: normal; color: var(--text-muted);">
+          <span>Rolling Window: 100 Samples</span>
+        </div>
+      </div>
+      <div class="chart-box">
+        <canvas id="scopeCanvas"></canvas>
+      </div>
+      <div class="controls-row">
+        <button class="btn" onclick="togglePause()" id="pauseBtn">Pause Scope</button>
+        <button class="btn" onclick="resetZoom()">Reset Axis</button>
+        <button class="btn" onclick="toggleSim()" id="simBtn">Toggle Demo Mode</button>
+      </div>
+    </div>
+
+    <!-- Side Panel Diagnostics & Gauges -->
+    <div>
+      <!-- Touch Status Card -->
+      <div class="card indicator-card" id="touchCard">
+        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);">
+          Hardware Touch Decision
+        </div>
+        <div class="indicator-text" id="touchStatusText" style="color: var(--nxp-green);">
+          IDLE / QUIESCENT
+        </div>
+        <div style="margin-top: 8px;">
+          <span class="badge badge-idle" id="classBadge">CLASS: IDLE</span>
+        </div>
+      </div>
+
+      <!-- TinyML & Metrics Card -->
+      <div class="card">
+        <div class="card-title">Algorithm Metrics</div>
+        
+        <div class="stat-row">
+          <span class="stat-label">Net Shift &Delta;<sub>dyn</sub>:</span>
+          <span class="stat-value" id="valDelta" style="color: var(--nxp-purple);">+0.0 LSB</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Kalman Filter x<sub>est</sub>:</span>
+          <span class="stat-value" id="valKalman" style="color: var(--nxp-green);">185.0 LSB</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Dynamic Baseline:</span>
+          <span class="stat-value" id="valBaseline" style="color: var(--nxp-orange);">185.0 LSB</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Raw Differential &Delta;D:</span>
+          <span class="stat-value" id="valRaw" style="color: var(--nxp-blue);">+185 LSB</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">DTA Threshold:</span>
+          <span class="stat-value" id="valDta" style="color: var(--text-muted);">48.0 LSB</span>
+        </div>
+
+        <div class="stat-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; width: 100%;">
+            <span class="stat-label">TinyML Confidence:</span>
+            <span class="stat-value" id="valConf" style="color: var(--nxp-blue);">0%</span>
+          </div>
+          <div class="confidence-bar-bg">
+            <div class="confidence-bar-fill" id="confFill"></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">MCU Execution Time:</span>
+          <span class="stat-value" id="valExec" style="color: var(--nxp-green);">32 &mu;s</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">ASIL-B Safety Budget:</span>
+          <span class="stat-value" style="color: var(--text-muted);">&lt; 15,000 &mu;s (99.8% Headroom)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MAX_POINTS = 100;
+    let isPaused = false;
+    let isSimMode = false;
+    let simCycle = 0;
+    let ws = null;
+    let rpcId = 1;
+
+    // Chart Setup
+    const ctx = document.getElementById('scopeCanvas').getContext('2d');
+    const scopeChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array(MAX_POINTS).fill(''),
+        datasets: [
+          {
+            label: 'Net Dynamic Shift (Delta)',
+            borderColor: '#8B5CF6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.25,
+            data: Array(MAX_POINTS).fill(0)
+          },
+          {
+            label: 'Raw CVD Diff (Delta D)',
+            borderColor: '#0EAFE0',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.1,
+            data: Array(MAX_POINTS).fill(185)
+          },
+          {
+            label: 'Kalman Estimate (x_est)',
+            borderColor: '#10B981',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.2,
+            data: Array(MAX_POINTS).fill(185)
+          },
+          {
+            label: 'Asymmetric Baseline',
+            borderColor: '#FCA600',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            tension: 0,
+            data: Array(MAX_POINTS).fill(185)
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            display: false,
+            grid: { display: false }
+          },
+          y: {
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: { color: '#9CA3AF', font: { family: 'monospace' } }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: '#F3F4F6',
+              boxWidth: 12,
+              font: { size: 12 }
+            }
+          }
+        }
+      }
+    });
+
+    function connectWS() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:8090';
+      ws = new WebSocket(`${proto}//${host}`);
+
+      ws.onopen = () => {
+        document.getElementById('connPill').className = 'conn-status';
+        document.getElementById('connLabel').innerText = 'Connected (8090)';
+        // Initialize Comm
+        ws.send(JSON.stringify({
+          jsonrpc: '2.0',
+          id: rpcId++,
+          method: 'StartComm',
+          params: ['S32K144W_OpenSDA']
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const res = JSON.parse(event.data);
+          if (res.result && Array.isArray(res.result.data)) {
+            updateDashboard(res.result.data);
+          }
+        } catch (e) {}
+      };
+
+      ws.onclose = () => {
+        document.getElementById('connPill').className = 'conn-status disconnected';
+        document.getElementById('connLabel').innerText = 'Disconnected (Reconnecting...)';
+        setTimeout(connectWS, 1500);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
+
+    function updateDashboard(vars) {
+      if (isPaused) return;
+
+      let touch = 0, delta = 0, x_est = 185, base = 185, raw = 185, conf = 0, cls = 0, exec_us = 32;
+
+      for (let v of vars) {
+        if (v.name === 'g_touch_active') touch = Number(v.value);
+        if (v.name === 'dynamic_delta') delta = Number(v.value);
+        if (v.name === 'kalman_x_est') x_est = Number(v.value);
+        if (v.name === 'baseline_val') base = Number(v.value);
+        if (v.name === 'raw_diff') raw = Number(v.value);
+        if (v.name === 'confidence') conf = Number(v.value);
+        if (v.name === 'predicted_class') cls = Number(v.value);
+        if (v.name === 'g_exec_time_us') exec_us = Number(v.value);
+      }
+
+      // Update Chart Series
+      scopeChart.data.datasets[0].data.shift();
+      scopeChart.data.datasets[0].data.push(delta);
+
+      scopeChart.data.datasets[1].data.shift();
+      scopeChart.data.datasets[1].data.push(raw);
+
+      scopeChart.data.datasets[2].data.shift();
+      scopeChart.data.datasets[2].data.push(x_est);
+
+      scopeChart.data.datasets[3].data.shift();
+      scopeChart.data.datasets[3].data.push(base);
+
+      scopeChart.update();
+
+      // Update Stat Labels
+      document.getElementById('valDelta').innerText = (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' LSB';
+      document.getElementById('valKalman').innerText = x_est.toFixed(1) + ' LSB';
+      document.getElementById('valBaseline').innerText = base.toFixed(1) + ' LSB';
+      document.getElementById('valRaw').innerText = (raw >= 0 ? '+' : '') + raw + ' LSB';
+      document.getElementById('valConf').innerText = Math.round(conf * 100) + '%';
+      document.getElementById('confFill').style.width = Math.round(conf * 100) + '%';
+      document.getElementById('valExec').innerText = exec_us + ' \u03BCs';
+
+      const touchCard = document.getElementById('touchCard');
+      const touchText = document.getElementById('touchStatusText');
+      const classBadge = document.getElementById('classBadge');
+
+      if (cls === 3) {
+        touchCard.className = 'card indicator-card water';
+        touchText.innerText = 'WATER DROPLET REJECTED';
+        touchText.style.color = 'var(--nxp-orange)';
+        classBadge.className = 'badge badge-water';
+        classBadge.innerText = 'CLASS: WATER DROPLET';
+      } else if (touch === 1) {
+        touchCard.className = 'card indicator-card touched';
+        touchText.innerText = 'VALID TOUCH CONFIRMED';
+        touchText.style.color = 'var(--nxp-blue)';
+        classBadge.className = 'badge badge-bare';
+        classBadge.innerText = 'CLASS: BARE FINGER';
+      } else {
+        touchCard.className = 'card indicator-card';
+        touchText.innerText = 'IDLE / QUIESCENT';
+        touchText.style.color = 'var(--nxp-green)';
+        classBadge.className = 'badge badge-idle';
+        classBadge.innerText = 'CLASS: IDLE';
+      }
+    }
+
+    // Polling Loop: Query FreeMASTER variables over WebSocket at 40 Hz
+    setInterval(() => {
+      if (isPaused) return;
+
+      if (isSimMode) {
+        simCycle++;
+        const phase = (simCycle % 200);
+        let touch = 0, delta = 0, conf = 0.04, cls = 0;
+        if (50 < phase && phase < 130) {
+          touch = 1;
+          delta = 1450 + 20 * Math.sin(simCycle * 0.25);
+          conf = 0.98;
+          cls = 1;
+        } else {
+          touch = 0;
+          delta = 0 + 2 * Math.sin(simCycle * 0.1);
+          conf = 0.04;
+          cls = 0;
+        }
+        const base = 185;
+        const x_est = base + delta;
+        const raw = Math.round(x_est);
+        updateDashboard([
+          { name: 'g_touch_active', value: touch },
+          { name: 'dynamic_delta', value: delta },
+          { name: 'kalman_x_est', value: x_est },
+          { name: 'baseline_val', value: base },
+          { name: 'raw_diff', value: raw },
+          { name: 'confidence', value: conf },
+          { name: 'predicted_class', value: cls },
+          { name: 'g_exec_time_us', value: 32 }
+        ]);
+      } else if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          jsonrpc: '2.0',
+          id: rpcId++,
+          method: 'ReadMultipleVariables',
+          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us']]
+        }));
+      }
+    }, 25);
+
+    function togglePause() {
+      isPaused = !isPaused;
+      document.getElementById('pauseBtn').innerText = isPaused ? 'Resume Scope' : 'Pause Scope';
+    }
+
+    function toggleSim() {
+      isSimMode = !isSimMode;
+      document.getElementById('simBtn').innerText = isSimMode ? 'Use Hardware (COM5)' : 'Toggle Demo Mode';
+    }
+
+    function resetZoom() {
+      scopeChart.reset();
+    }
+
+    connectWS();
+  </script>
+</body>
+</html>
