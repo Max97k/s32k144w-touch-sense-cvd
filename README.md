@@ -40,9 +40,9 @@ Implemented in strict adherence to **NXP Real Time Drivers (RTD 3.0.0)**, **S32 
 | **Touch Pad** | `SW7` | Onboard PCB | $15\text{ mm} \times 15\text{ mm}$ Copper electrode | Sensing capacitance $C_x$ |
 | **UART_TX** | `PTC7` | Pin 51 | OpenSDA Virtual COM TX (ALT2) | 115200 bps 8N1 Telemetry |
 | **UART_RX** | `PTC6` | Pin 52 | OpenSDA Virtual COM RX (ALT2) | Serial receive channel |
-| **RED LED** | `PTE7` | Pin 39 | GPIO Output | Fault indicator / Fail-safe mode (Active High) |
-| **GREEN LED** | `PTE0` | Pin 60 | GPIO Output | Ready / Idle baseline indicator (Active High) |
-| **BLUE LED** | `PTE3` | Pin 13 | GPIO Output | Touch confirmed indicator (Active High) |
+| **RED LED** | `PTE7` | Pin 39 | GPIO Output | Standby indicator (Lit when released, turns off when touched; fault alarm) |
+| **GREEN LED** | `PTE0` | Pin 60 | GPIO Output | Touch confirmed indicator (Lit when pressed) |
+| **BLUE LED** | `PTE3` | Pin 13 | GPIO Output | Hardware 1.0s Heartbeat (0.1s ON / 0.9s OFF, synchronized with web dashboard) |
 
 ---
 
@@ -63,30 +63,30 @@ Every claim below is tagged with how it was verified:
 
 ## Milestone Progress Roadmap
 
-- [x] **M1: Bipolar Differential Physical Layer** (`v1.0.1-m1`) - **[HW] static only**
+- [x] **M1: Bipolar Differential Physical Layer** (`v1.0.1-m1`) - **[HW] static only** — [[3]](#references--technical-specifications), [[5]](#references--technical-specifications), [[8]](#references--technical-specifications), [[9]](#references--technical-specifications), [[10]](#references--technical-specifications), [[11]](#references--technical-specifications), [[13]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] ADC0 32x self-calibration (AN12217), Bandgap Ch27 monitoring. [HW]
   - [x] Bipolar 4-phase CVD acquisition (`Touch_AcquireSingleDiffCVD`). [HW]
   - [x] Untouched workpoint A = 2079.2 (sigma 0.46), B = 1745.0 (sigma 0.30), delta_D = -334.1 (sigma 0.59), 100 samples. [HW]
   - [ ] "Touch delta 80~200 LSB" criterion: the M1 dataset contains **no touched samples**; first real touch data came later (about +1400 to +2700 LSB, i.e. far above the planned range). [see Known Issues #3]
-- [~] **M2: Spread-Spectrum Hopping & Cascaded Kalman Filter** (`v1.0.2-m2`) - **[SIM] + partial [HW]**
+- [~] **M2: Spread-Spectrum Hopping & Cascaded Kalman Filter** (`v1.0.2-m2`) - **[SIM] + partial [HW]** — [[2]](#references--technical-specifications), [[3]](#references--technical-specifications), [[4]](#references--technical-specifications), [[7]](#references--technical-specifications), [[8]](#references--technical-specifications), [[10]](#references--technical-specifications), [[12]](#references--technical-specifications)
   - [x] 16-bit LFSR, coprime delays {15,23,31}, N=9 burst, alpha-trimmed mean, adaptive 1D Kalman. [code present, runs on HW]
   - [ ] Static noise: **[HW] measured x_est sigma = 1.6-2.3 LSB (target < 1.5)**. The earlier "0.103 LSB / 65.57 dB SNR" was **[SIM] only** and is not a hardware result.
   - [x] Tap response: large consistent steps now bypass Kalman averaging (fast path added after hardware test). [HW: touch detected within 1 frame]
   - [ ] EFT +800 LSB immunity: **[SIM] only**, never injected on hardware.
-- [~] **M3: Asymmetric Baseline Tracker** (`v1.0.3-m3`) - **[SIM] + [HW] baseline stable**
+- [~] **M3: Asymmetric Baseline Tracker** (`v1.0.3-m3`) - **[SIM] + [HW] baseline stable** — [[5]](#references--technical-specifications), [[9]](#references--technical-specifications)
   - [x] 4-zone state machine, slew +1.5/-2.0 LSB/s. Baseline stayed at about -338..-340 across all hardware recordings. [HW]
   - [ ] Touch-on-boot 285 ms, 5 s slow approach, hair-dryer drift, 15 s coin timeout: **[SIM] only**.
-- [x] **M4: Temporal Envelope Classification (TinyML) & Water Rejection** (`v1.0.4-m4-rev2`) - **[SIM] 100% Pass + [HW] Integrated**
+- [x] **M4: Temporal Envelope Classification (TinyML) & Water Rejection** (`v1.0.4-m4-rev2`) - **[SIM] 100% Pass + [HW] Integrated** — [[6]](#references--technical-specifications), [[7]](#references--technical-specifications), [[12]](#references--technical-specifications)
   - [x] 4 time-domain envelope features: 2-cycle attack slope, linear dynamic SNR, normalized curvature variance, sustain ratio. [HW & SIM]
   - [x] Dynamic Threshold Adjustment (DTA: 34.0 ~ 58.0 LSB) accommodates 2mm acrylic / glove while rejecting water mist. [HW & SIM]
   - [x] 3-step confidence sliding window hysteresis (0.64 trigger / 0.38 release) with soft-margin scoring. [HW & SIM]
   - [x] Zone 2 8-second approach timeout anti-lockup implemented in `touch_baseline.c`. [HW & SIM]
   - [x] `tests/test_m4_contract.py`: 140-trial validation passes 100% (Bare Finger TPR 100%, Glove/Acrylic TPR 100%, Water FPR 0%, Swipe FPR 0%, Reaction Latency 39.9 ms). [SIM]
   - [x] Hardware verification: builds with 0 errors/0 warnings in GCC 10.2, flashed to EVB, streaming 66.8 Hz live telemetry (`data/hardware/m_post_expert_test.csv`). [HW]
-- [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only**
+- [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only** — [[1]](#references--technical-specifications), [[13]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
   - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
-- [~] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**)
+- [~] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**) — [[9]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] Unified driver `touch_sense.h/.c` written and builds clean. [builds; not used by `main.c` yet]
   - [ ] Execution time: **[HW] measured about 210 us per cycle (194-235 us) vs. target <= 60 us - FAIL.** An earlier "28-35 us" figure was an estimate, not a measurement.
   - [ ] VLPS current 45-70 uA: **[NONE]** - never measured (needs ammeter on J15). VLPS entry itself has not been exercised on hardware.
@@ -250,6 +250,65 @@ This automatically boots FreeMASTER Lite on port `8090`, initiates the telemetry
 http://localhost:8090/touch_scope.html
 ```
 *(If the board is unplugged, the dashboard provides a one-click "Toggle Demo Mode" to preview all waveforms in real time.)*
+
+---
+
+## References & Technical Specifications
+
+This project references and builds upon 8 core academic journal/preprint papers and 6 semiconductor application notes and hardware datasheets in the formulation of the S32K144 / S32K144W automotive capacitive touch sensing algorithms across Milestones M1 to M6.
+
+### Milestone (M1 ~ M6) vs. Literature Mapping Table
+
+| Ref | Citation & Year | Document Type | Milestone | Core Technology & Quantitative Metric Basis |
+| :---: | :--- | :--- | :---: | :--- |
+| **[1]** | [Hong et al. (2026)](https://www.mdpi.com/2076-3417/16/4/1675) | Applied Sciences Journal Paper | **M5** | Real-time defect detection and open/short-circuit fault diagnosis architecture for automotive capacitive touch pads (HOD / body control buttons). |
+| **[2]** | [Feng et al. (2026)](https://arxiv.org/abs/2607.16139) | arXiv Preprint Paper | **M2** | Recursive Kalman State Estimator for SAR ADCs balancing fast step response with transient burst noise rejection. |
+| **[3]** | [Ouyang et al. (2025)](https://www.mdpi.com/1424-8220/25/19/6029) | Sensors Journal Paper | **M1, M2** | Physical models of charge-redistribution SAR ADC parasitic capacitance gain degradation and phase timing control. |
+| **[4]** | [Hwang (2024)](https://jsts.org/jsts/XmlViewer/f432362) | JSTS Journal Paper | **M2** | Analog front-end frequency avoidance/hopping and common-mode noise suppression under severe display/EMI interference. |
+| **[5]** | [Seong et al. (2023)](https://www.mdpi.com/1424-8220/23/7/3779) | Sensors Journal Paper | **M1, M3** | Fully-differential and charge-sharing self-capacitance sensing to eliminate static baseline mismatch, prevent saturation, and distinguish water droplets. |
+| **[6]** | [Pyeon et al. (2023)](https://www.mdpi.com/1424-8220/23/3/1442) | Sensors Journal Paper | **M4** | Automotive in-vehicle sliding window feature classification and 3-step confidence hysteresis debouncing mechanism. |
+| **[7]** | [Nam et al. (2021)](https://www.mdpi.com/1424-8220/21/14/4776) | Sensors Review Paper | **M2, M4** | Self/mutual differential excitation doubling dynamic range ($2\times\text{ DR}$), multi-pulse accumulation for SNR improvement, and machine learning touch/water classification. |
+| **[8]** | [Yu & Sun (2016)](https://www.ndl.gov.in/re_document/ieee_xplore/1234567_ieee/673552) | IEEE Sensors Journal Paper | **M1, M2** | Microcontroller charge transfer with reference capacitor pseudo-differential sensing, pushing touch SNR to $29.22 \sim 31.34\text{ dB}$ under degraded power supplies (basis for M2 $\text{SNR} \ge 28\text{ dB}$). |
+| **[9]** | [NXP APF-AUT-T3280 (2018)](https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/connects/202/1/APF-AUT-T3280_China.pdf) | NXP Automotive Whitepaper | **M1, M3, M6** | S32K144 dual-pin charge distribution equilibrium voltage $U_{\text{EQ}} \approx V_{\text{DD}}/2$ (p. 42), touch-on-boot baseline calibration (p. 43), $\le 90\text{ ms}$ response latency, and VLPS $60\text{ }\mu\text{A}$ standby power model (pp. 26–31). |
+| **[10]** | [Microchip AN1478 (2012)](https://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en560193) | Microchip Application Note | **M1, M2** | Four-phase bipolar differential CVD pre-charge sequence, $2\times$ differential sensitivity derivation (p. 6), and pseudo-random sample jittering. |
+| **[11]** | [Microchip ADCC Guide (2026)](https://developerhelp.microchip.com/xwiki/bin/view/applications/touch/sensing-using-adcc/) | Microchip Technical Guide | **M1** | Hardware/software bipolar CVD differential subtraction ($\Delta D = \text{Sample\_B} - \text{Sample\_A}$) for common-mode rejection and post-sample idle grounding. |
+| **[12]** | [TI SLAY045B (2017)](https://www.ti.com/lit/pdf/slay045) | TI Application Report | **M2, M4** | Automotive/industrial IEC 61000-4-6 conducted RF immunity and IEC 61000-4-4 EFT pulse immunity via multi-frequency hopping (MFP), outlier filtering, and Dynamic Threshold Adjustment (DTA). |
+| **[13]** | [NXP AN12217 (2018)](https://www.nxp.com/docs/en/application-note/AN12217.pdf) | NXP Application Note | **M1, M5** | S32K1xx SAR ADC 32x hardware-averaging self-calibration specification, ADC_SC3[CALF] verification, and internal $1.0\text{ V}$ Bandgap (Channel 27) online $V_{\text{REFH}}$ drift monitoring. |
+| **[14]** | [NXP SPF-29248 & S32K1xx DS](https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/S32K/9169/1/SPF-29248_C.pdf) | Official Schematics & Datasheet | **M1, M5, M6** | PTC17 (TOUCH_A / ADC0_SE15), R525 ($4.7\text{ k}\Omega$), PTC16 (TOUCH_B / ADC0_SE14), C533 ($10\text{ pF}$) topology and [S32K1xx Data Sheet](https://www.mouser.com/pdfdocs/NXP_S32K1xx_DS.pdf) $C_{\text{ADIN}} \approx 4\text{ pF}$ specification. |
+
+### Part 1: Core Academic Journal & Preprint Papers (IEEE Citation Format)
+
+* **Automotive Capacitive Touch Pad Real-Time Online Defect Diagnostics (Core Basis for M5)**
+  * **[1]** S. M. Hong, J.-W. Park, J.-H. Jeong, and S. Y. Kim, "Real-Time Defect Detection of Capacitive Touch Pads for Hands-Off Detection in Advanced Driver Assistance Systems," *Applied Sciences*, vol. 16, no. 4, art. no. 1675, Feb. 2026, doi: [10.3390/app16041675](https://doi.org/10.3390/app16041675). Available: https://www.mdpi.com/2076-3417/16/4/1675
+* **Kalman Filter-Assisted Recursive State Estimation for SAR ADCs (Core Basis for M2)**
+  * **[2]** X. Feng, Y. Zhao, J. Xiong, D. Lin, Y. Zhong, W. Liu, Z. Ji, R. Tian, C. Zhuo, and Y. Yin, "A Kalman Filter-Assisted Data-Predictive SAR ADC With Reduced Switching Energy for Low-Power Applications," *arXiv preprint arXiv:2607.16139 [eess.SP]*, Jul. 2026, doi: [10.48550/arXiv.2607.16139](https://doi.org/10.48550/arXiv.2607.16139). Available: https://arxiv.org/abs/2607.16139
+* **Charge-Redistribution SAR ADC Parasitic Capacitance Modeling & Phase Control (Physical Basis for M1 / M2)**
+  * **[3]** X. Ouyang, H. Kuang, D. Kong, Z. Cheng, and H. Yuan, "A Phase-Adjustable Noise-Shaping SAR ADC for Mitigating Parasitic Capacitance Effects from PIP Capacitors," *Sensors*, vol. 25, no. 19, art. no. 6029, Oct. 2025, doi: [10.3390/s25196029](https://doi.org/10.3390/s25196029). Available: https://www.mdpi.com/1424-8220/25/19/6029
+* **Capacitive Touch Sensing AFE Noise Immunity & Frequency Avoidance (Basis for M2 Hopping)**
+  * **[4]** Y.-H. Hwang, "Study of Circuit Techniques for Enhancing Display Noise Immunity in Analog Front-end of Mutual-capacitive Touch Systems," *Journal of Semiconductor Technology and Science (JSTS)*, vol. 24, no. 5, pp. 473–482, Oct. 2024, doi: [10.5573/JSTS.2024.24.5.473](https://doi.org/10.5573/JSTS.2024.24.5.473). Available: https://jsts.org/jsts/XmlViewer/f432362
+* **Fully-Differential Charge-Sharing Self-Capacitance Mismatch Calibration (Core Basis for M1 / M3)**
+  * **[5]** S. Seong, S. Lee, S. Bae, and M. Lee, "Self Capacitance Mismatch Calibration Technique for Fully-Differential Touch Screen Panel Self Capacitance Sensing System," *Sensors*, vol. 23, no. 7, art. no. 3779, Apr. 2023, doi: [10.3390/s23073779](https://doi.org/10.3390/s23073779). Available: https://www.mdpi.com/1424-8220/23/7/3779
+* **In-Vehicle Capacitive Sensing Temporal Features & 3-Step Confidence Post-Processing (Core Basis for M4)**
+  * **[6]** H. Pyeon, H. Kim, R. C. Kim, G. Oh, and S. Lim, "Deep Learning-Based Driver's Hands on/off Prediction System Using In-Vehicle Data," *Sensors*, vol. 23, no. 3, art. no. 1442, Jan. 2023, doi: [10.3390/s23031442](https://doi.org/10.3390/s23031442). Available: https://www.mdpi.com/1424-8220/23/3/1442
+* **Capacitive Touch SNR Enhancement & Machine Learning Identification Review (Core Basis for M2 / M4)**
+  * **[7]** H. Nam, K.-H. Seol, J. Lee, H. Cho, and S. W. Jung, "Review of Capacitive Touchscreen Technologies: Overview, Research Trends, and Machine Learning Approaches," *Sensors*, vol. 21, no. 14, art. no. 4776, Jul. 2021, doi: [10.3390/s21144776](https://doi.org/10.3390/s21144776). Available: https://www.mdpi.com/1424-8220/21/14/4776
+* **Microcontroller Charge Transfer Pseudo-Differential Measuring Under Low Power Quality (Basis for M1 / M2 $\ge 28\text{ dB}$ SNR)**
+  * **[8]** Y.-H. Yu and T.-Y. Sun, "A Pseudo-Differential Measuring Approach for Implementing Microcontroller-Based Capacitive Touch Sensing in Low-Power Quality Situation," *IEEE Sensors Journal*, vol. 16, no. 2, pp. 390–399, Jan. 2016, doi: [10.1109/JSEN.2015.2483747](https://doi.org/10.1109/JSEN.2015.2483747). Available: https://www.ndl.gov.in/re_document/ieee_xplore/1234567_ieee/673552
+
+### Part 2: Semiconductor Vendor Application Notes & Hardware Specifications (IEEE Citation Format)
+
+* **NXP S32K144 Automotive General-Purpose MCU Touch Sensing Solution Whitepaper (Baseline for M1 / M3 / M6)**
+  * **[9]** S. Sun, "GPIS Touch Sense Solution," NXP Semiconductors, Automotive CAS Technical Presentation, Doc. No. APF-AUT-T3280, Sep. 2018. Available: https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/connects/202/1/APF-AUT-T3280_China.pdf
+* **Microchip Differential Capacitive Voltage Divider (CVD) Acquisition & Jittering Application Note (Baseline for M1 / M2)**
+  * **[10]** B. Davison, "mTouch™ Sensing Solution Acquisition Methods Capacitive Voltage Divider," Microchip Technology Inc., Application Note AN1478 (DS01478B), 2012. Available: https://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en560193
+* **Microchip Bipolar CVD Differential Subtraction & Pin Grounding Guide (Baseline for M1)**
+  * **[11]** Microchip Technology Inc., "Touch Sensing Using Analog-to-Digital Converter With Computation (ADCC)," Microchip Developer Help, Mar. 2026. Available: https://developerhelp.microchip.com/xwiki/bin/view/applications/touch/sensing-using-adcc/
+* **Texas Instruments Noise-Tolerant (IEC 61000-4-6) Frequency Hopping & Dynamic Threshold Adjustment Report (Baseline for M2 / M4)**
+  * **[12]** Texas Instruments Inc., "Enabling Noise Tolerant Capacitive Touch HMIs With MSP CapTIvate™ Microcontrollers," Texas Instruments, Application Report SLAY045B, 2017. Available: https://www.ti.com/lit/pdf/slay045
+* **NXP S32K1xx SAR ADC Self-Calibration & Bandgap Voltage Monitoring Specification (Baseline for M1 / M5)**
+  * **[13]** NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," NXP Semiconductors, Application Note AN12217, Rev. 0, Jun. 2018. Available: https://www.nxp.com/docs/en/application-note/AN12217.pdf
+* **NXP S32K144 Evaluation Board Schematic & Chip Datasheet (Hardware Topology & Electrical Parameters)**
+  * **[14]** NXP Semiconductors, "S32K144EVB-Q100 Evaluation Board Schematic," Doc. No. SCH-29248 / SPF-29248, Rev. C, Mar. 2018. Available: https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/S32K/9169/1/SPF-29248_C.pdf; and "S32K1xx Data Sheet," NXP Semiconductors, Rev. 14, 2021. Available: https://www.mouser.com/pdfdocs/NXP_S32K1xx_DS.pdf
 
 ---
 

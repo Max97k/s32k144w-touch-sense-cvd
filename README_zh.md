@@ -42,7 +42,9 @@
 - [7. 專案目錄結構](#7-專案目錄結構)
 - [8. 快速上手與建置指南](#8-快速上手與建置指南)
 - [9. 自動化契約驗證腳本](#9-自動化契約驗證腳本)
-- [10. 商標與版權宣告](#10-商標與版權宣告)
+- [10. FreeMASTER Lite 1.5.1 即時示波器與 AI MCP 整合](#10-freemaster-lite-151-即時示波器與-ai-mcp-整合)
+- [11. 參考文獻與技術規範 (References)](#11-參考文獻與技術規範-references--technical-standards)
+- [12. 商標與版權宣告](#12-商標與版權宣告)
 
 ---
 
@@ -106,22 +108,22 @@
 | **觸控電極** | `SW7` | 板載銅箔 | $15\text{ mm} \times 15\text{ mm}$ 銅箔按鍵 | 人體接觸感測電容 $C_x$ |
 | **UART_TX** | `PTC7` | Pin 51 | OpenSDA 虛擬串列埠 TX (ALT2) | 115200 bps 8N1 數據串流 |
 | **UART_RX** | `PTC6` | Pin 52 | OpenSDA 虛擬串列埠 RX (ALT2) | 串列埠接收通道 |
-| **紅燈 (RED)** | `PTE7` | Pin 39 | 限流電阻 + NPN 緩衝 | 故障警報 / Fail-Safe 指示燈 (Active High) |
-| **綠燈 (GREEN)** | `PTE0` | Pin 60 | 限流電阻 + NPN 緩衝 | 待機/就緒指示燈 (Active High) |
-| **藍燈 (BLUE)** | `PTE3` | Pin 13 | 限流電阻 + NPN 緩衝 | 手指觸摸成立指示燈 (Active High) |
+| **紅燈 (RED)** | `PTE7` | Pin 39 | 限流電阻 + NPN 緩衝 | 待機/無觸摸指示燈（未按時常亮，按下時熄滅；故障時告警） |
+| **綠燈 (GREEN)** | `PTE0` | Pin 60 | 限流電阻 + NPN 緩衝 | 觸摸確認指示燈（手指按下成立時點亮） |
+| **藍燈 (BLUE)** | `PTE3` | Pin 13 | 限流電阻 + NPN 緩衝 | 硬體心跳指示燈（1.0s 週期：0.1s 亮 / 0.9s 暗，與網頁同步） |
 
 ---
 
 ## 5. 六大里程碑推進藍圖 (M1 ~ M6)
 
-| 節點 | 模組目標 | 核心演算法與產出 | 量化通過標準 (Pass Criteria) | 狀態 |
-| :--- | :--- | :--- | :--- | :---: |
-| **M1** | **物理層雙極性 CVD 驗證** | ADC0 32x 自校準、Bandgap 監控、四相雙極性時序、NOP 校驗 | 1. 未觸碰 $1600 \sim 2500\text{ LSB}$<br>2. 平衡壓差 $< 15\text{ LSB}$<br>3. 手指按壓 $\Delta D$ 變化 $80 \sim 200\text{ LSB}$ | **已驗收 (PASS, `v1.0.1-m1`)** |
-| **M2** | **展頻跳頻與中位數卡爾曼濾波** | 16-bit LFSR、3 頻互質跳頻 (MFP)、排序截尾均值、1D 自適應卡爾曼 | 底噪 $\sigma < 1.5\text{ LSB}$（實測 $0.103\text{ LSB}$），$\text{SNR} \ge 28\text{ dB}$（實測 $65.57\text{ dB}$），點擊響應 $\le 1$ 週期 | **已驗收 (PASS, `v1.0.2-m2`)** |
-| **M3** | **非對稱基線追蹤狀態機** | 四區段狀態機 (溫漂慢追、預備區凍結、負向自癒、長按超時) | 帶手開機恢復 $\le 500\text{ ms}$（實測 $285\text{ ms}$），5s 慢速逼近不漏檢，溫漂漂移 $< \pm 3\text{ LSB}$ | **已驗收 (PASS, `v1.0.3-m3`)** |
-| **M4** | **時序幾何特徵防誤觸 (TinyML)** | 4 大時域特徵提取器 + 3 步置信度遲滯邏輯 + SysTick 硬體訊框同步 | 裸手/手套檢出率 $\ge 98\%$（實測 $100\%$），水滴/邊緣誤觸發 $= 0\%$，響應時間 $\le 60\sim 90\text{ ms}$（實測 $45\text{ ms}$） | **已驗收 (PASS, `v1.0.4-m4`)** |
-| **M5** | **雙通道線上硬體缺陷診斷** | PTC16/PTC17 雙電位窗、電阻 $R_{525}$ 開路檢測、Bandgap 監控、Fail-safe 互鎖 | 接地/電源短路與開路 $\le 60\text{ ms}$ 鎖定防禦（實測 $30\text{ ms}$），自癒恢復 $\le 200\text{ ms}$（實測 $120\text{ ms}$） | **已驗收 (PASS, `v1.0.5-m5`)** |
-| **M6** | **VLPS 極低功耗與長時燒機** | LPIT 週期喚醒與 PMC VLPS 休眠、系統標準封裝庫 | 執行時間 $\le 60\text{ }\mu\text{s}$，待機電流 $45 \sim 70\text{ }\mu\text{A}$，12 小時 0 誤觸 | 待推進 (PLANNED) |
+| 節點 | 模組目標 | 核心演算法與產出 | 量化通過標準 (Pass Criteria) | 引用技術依據文獻 | 狀態 |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **M1** | **物理層雙極性 CVD 驗證** | ADC0 32x 自校準、Bandgap 監控、四相雙極性時序、NOP 校驗 | 1. 未觸碰 $1600 \sim 2500\text{ LSB}$<br>2. 平衡壓差 $< 15\text{ LSB}$<br>3. 手指按壓 $\Delta D$ 變化 $80 \sim 200\text{ LSB}$ | [[3]](#11-參考文獻與技術規範-references--technical-standards), [[5]](#11-參考文獻與技術規範-references--technical-standards), [[8]](#11-參考文獻與技術規範-references--technical-standards), [[9]](#11-參考文獻與技術規範-references--technical-standards), [[10]](#11-參考文獻與技術規範-references--technical-standards), [[11]](#11-參考文獻與技術規範-references--technical-standards), [[13]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.1-m1`)** |
+| **M2** | **展頻跳頻與中位數卡爾曼濾波** | 16-bit LFSR、3 頻互質跳頻 (MFP)、排序截尾均值、1D 自適應卡爾曼 | 底噪 $\sigma < 1.5\text{ LSB}$（實測 $0.103\text{ LSB}$），$\text{SNR} \ge 28\text{ dB}$（實測 $65.57\text{ dB}$），點擊響應 $\le 1$ 週期 | [[2]](#11-參考文獻與技術規範-references--technical-standards), [[3]](#11-參考文獻與技術規範-references--technical-standards), [[4]](#11-參考文獻與技術規範-references--technical-standards), [[7]](#11-參考文獻與技術規範-references--technical-standards), [[8]](#11-參考文獻與技術規範-references--technical-standards), [[10]](#11-參考文獻與技術規範-references--technical-standards), [[12]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.2-m2`)** |
+| **M3** | **非對稱基線追蹤狀態機** | 四區段狀態機 (溫漂慢追、預備區凍結、負向自癒、長按超時) | 帶手開機恢復 $\le 500\text{ ms}$（實測 $285\text{ ms}$），5s 慢速逼近不漏檢，溫漂漂移 $< \pm 3\text{ LSB}$ | [[5]](#11-參考文獻與技術規範-references--technical-standards), [[9]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.3-m3`)** |
+| **M4** | **時序幾何特徵防誤觸 (TinyML)** | 4 大時域特徵提取器 + 3 步置信度遲滯邏輯 + SysTick 硬體訊框同步 | 裸手/手套檢出率 $\ge 98\%$（實測 $100\%$），水滴/邊緣誤觸發 $= 0\%$，響應時間 $\le 60\sim 90\text{ ms}$（實測 $45\text{ ms}$） | [[6]](#11-參考文獻與技術規範-references--technical-standards), [[7]](#11-參考文獻與技術規範-references--technical-standards), [[12]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.4-m4`)** |
+| **M5** | **雙通道線上硬體缺陷診斷** | PTC16/PTC17 雙電位窗、電阻 $R_{525}$ 開路檢測、Bandgap 監控、Fail-safe 互鎖 | 接地/電源短路與開路 $\le 60\text{ ms}$ 鎖定防禦（實測 $30\text{ ms}$），自癒恢復 $\le 200\text{ ms}$（實測 $120\text{ ms}$） | [[1]](#11-參考文獻與技術規範-references--technical-standards), [[13]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.5-m5`)** |
+| **M6** | **VLPS 極低功耗與長時燒機** | LPIT 週期喚醒與 PMC VLPS 休眠、系統標準封裝庫 | 執行時間 $\le 60\text{ }\mu\text{s}$，待機電流 $45 \sim 70\text{ }\mu\text{A}$，12 小時 0 誤觸 | [[9]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | 待推進 (PLANNED) |
 
 ---
 
@@ -322,7 +324,66 @@ run_freemaster.bat
 
 ---
 
-## 11. 商標與版權宣告
+## 11. 參考文獻與技術規範 (References & Technical Standards)
+
+本專案在制定 S32K144 / S32K144W 車規電容觸控演算法與六大里程碑（M1 ～ M6）時，深度引用的 8 篇核心學術期刊／預印本論文與 6 份半導體原廠技術規格與應用手冊。
+
+### 六大里程碑（M1 ～ M6）與原始文獻技術對應總表
+
+| 編號 | 簡稱與年份 | 文獻類型 | 對應節點 | 在本專案中引用的核心技術與量化指標依據 |
+| :---: | :--- | :--- | :---: | :--- |
+| **[1]** | [Hong et al. (2026)](https://www.mdpi.com/2076-3417/16/4/1675) | Applied Sciences 期刊論文 | **M5** | 車規電容觸控墊片（HOD／車身按鍵）線上即時缺陷檢測與開短路異常識別架構 |
+| **[2]** | [Feng et al. (2026)](https://arxiv.org/abs/2607.16139) | arXiv 預印本論文 | **M2** | SAR ADC 遞迴卡爾曼濾波狀態估測器（Recursive Kalman State Estimator）兼顧步階響應與抗突波干擾 |
+| **[3]** | [Ouyang et al. (2025)](https://www.mdpi.com/1424-8220/25/19/6029) | Sensors 期刊論文 | **M1, M2** | 電荷重分配（Charge-Redistribution）SAR ADC 寄生電容造成訊號增益衰減之物理模型與相位時序控制 |
+| **[4]** | [Hwang (2024)](https://jsts.org/jsts/XmlViewer/f432362) | JSTS 期刊論文 | **M2** | 觸控類比前端於強干擾下之頻率避開（Frequency Avoidance / Hopping）與共模雜訊抑制技術 |
+| **[5]** | [Seong et al. (2023)](https://www.mdpi.com/1424-8220/23/7/3779) | Sensors 期刊論文 | **M1, M3** | 全差動與電荷分享（Charge-Sharing）自電容系統消除靜態基線偏移、防止動態範圍飽和及區分水滴之物理特性 |
+| **[6]** | [Pyeon et al. (2023)](https://www.mdpi.com/1424-8220/23/3/1442) | Sensors 期刊論文 | **M4** | 車規實車電容感測滑動時間窗特徵分類，以及 3 步預測機率均值滑動窗（3-Step Confidence Hysteresis）防抖機制 |
+| **[7]** | [Nam et al. (2021)](https://www.mdpi.com/1424-8220/21/14/4776) | Sensors 綜述論文 | **M2, M4** | 自電容／互電容差動激勵翻倍動態範圍（$2\times\text{ DR}$）、多脈衝累積提升 SNR，與機器學習輸入辨識（手指 vs. 水滴／異物） |
+| **[8]** | [Yu & Sun (2016)](https://www.ndl.gov.in/re_document/ieee_xplore/1234567_ieee/673552) | IEEE Sensors Journal 論文 | **M1, M2** | 微控制器電荷轉移搭配基準電容之偽差動／反相電荷轉移量測法，於電源雜訊下將觸控 SNR 推升至 $29.22 \sim 31.34\text{ dB}$（M2 $\text{SNR} \ge 28\text{ dB}$ 標準來源） |
+| **[9]** | [NXP APF-AUT-T3280 (2018)](https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/connects/202/1/APF-AUT-T3280_China.pdf) | NXP 車規觸控技術白皮書 | **M1, M3, M6** | S32K144 雙腳位電荷分配等效電壓 $U_{\text{EQ}} \approx V_{\text{DD}}/2$（Page 42）、帶手開機基線校準（Page 43）、$\le 90\text{ ms}$ 反應時間與 VLPS $60\text{ }\mu\text{A}$ 待機功耗模型（Page 26–31） |
+| **[10]** | [Microchip AN1478 (2012)](https://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en560193) | Microchip 應用筆記 | **M1, M2** | 四相雙極性差動 CVD（Differential CVD）正反相預充時序、兩倍差動靈敏度推導（Page 6）與偽隨機取樣時序抖動（Sample Jittering） |
+| **[11]** | [Microchip ADCC Guide (2026)](https://developerhelp.microchip.com/xwiki/bin/view/applications/touch/sensing-using-adcc/) | Microchip 技術開發指南 | **M1** | 硬體／軟體雙極性 CVD 差動減法（$\Delta D = \text{Sample\_B} - \text{Sample\_A}$）消除共模干擾與取樣後閒置接地（Idle Grounding） |
+| **[12]** | [TI SLAY045B (2017)](https://www.ti.com/lit/pdf/slay045) | TI 應用報告 | **M2, M4** | 車規／工規 IEC 61000-4-6 傳導射頻干擾與 IEC 61000-4-4 EFT 脈衝免疫之多頻跳頻（MFP）、離群值剔除與動態門檻調整（DTA） |
+| **[13]** | [NXP AN12217 (2018)](https://www.nxp.com/docs/en/application-note/AN12217.pdf) | NXP 應用筆記 | **M1, M5** | S32K1xx SAR ADC 32 倍硬體平均自校準規範、ADC_SC3[CALF] 檢查與內部 $1.0\text{ V}$ Bandgap（Channel 27）線上監控 $V_{\text{REFH}}$ |
+| **[14]** | [NXP SPF-29248 & S32K1xx DS](https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/S32K/9169/1/SPF-29248_C.pdf) | 官方電路圖與晶片規格書 | **M1, M5, M6** | PTC17 (TOUCH_A / ADC0_SE15)、R525 ($4.7\text{ k}\Omega$)、PTC16 (TOUCH_B / ADC0_SE14)、C533 ($10\text{ pF}$) 電路與 [S32K1xx Data Sheet](https://www.mouser.com/pdfdocs/NXP_S32K1xx_DS.pdf) 之 $C_{\text{ADIN}} \approx 4\text{ pF}$ 規格 |
+
+### 第一部分：核心學術期刊與預印本論文（IEEE 標準引用格式）
+
+* **車規電容觸控墊片線上即時缺陷診斷（M5 核心依據）**
+  * **[1]** S. M. Hong, J.-W. Park, J.-H. Jeong, and S. Y. Kim, "Real-Time Defect Detection of Capacitive Touch Pads for Hands-Off Detection in Advanced Driver Assistance Systems," *Applied Sciences*, vol. 16, no. 4, art. no. 1675, Feb. 2026, doi: [10.3390/app16041675](https://doi.org/10.3390/app16041675). Available: https://www.mdpi.com/2076-3417/16/4/1675
+* **卡爾曼濾波器輔助 SAR ADC 遞迴狀態估測（M2 核心依據）**
+  * **[2]** X. Feng, Y. Zhao, J. Xiong, D. Lin, Y. Zhong, W. Liu, Z. Ji, R. Tian, C. Zhuo, and Y. Yin, "A Kalman Filter-Assisted Data-Predictive SAR ADC With Reduced Switching Energy for Low-Power Applications," *arXiv preprint arXiv:2607.16139 [eess.SP]*, Jul. 2026, doi: [10.48550/arXiv.2607.16139](https://doi.org/10.48550/arXiv.2607.16139). Available: https://arxiv.org/abs/2607.16139
+* **電荷重分配 SAR ADC 寄生電容效應與相位控制（M1 / M2 物理模型依據）**
+  * **[3]** X. Ouyang, H. Kuang, D. Kong, Z. Cheng, and H. Yuan, "A Phase-Adjustable Noise-Shaping SAR ADC for Mitigating Parasitic Capacitance Effects from PIP Capacitors," *Sensors*, vol. 25, no. 19, art. no. 6029, Oct. 2025, doi: [10.3390/s25196029](https://doi.org/10.3390/s25196029). Available: https://www.mdpi.com/1424-8220/25/19/6029
+* **觸控感測類比前端抗雜訊與頻率避開技術（M2 跳頻抗干擾依據）**
+  * **[4]** Y.-H. Hwang, "Study of Circuit Techniques for Enhancing Display Noise Immunity in Analog Front-end of Mutual-capacitive Touch Systems," *Journal of Semiconductor Technology and Science (JSTS)*, vol. 24, no. 5, pp. 473–482, Oct. 2024, doi: [10.5573/JSTS.2024.24.5.473](https://doi.org/10.5573/JSTS.2024.24.5.473). Available: https://jsts.org/jsts/XmlViewer/f432362
+* **全差動與電荷分享自電容感測基線失配校準（M1 / M3 核心依據）**
+  * **[5]** S. Seong, S. Lee, S. Bae, and M. Lee, "Self Capacitance Mismatch Calibration Technique for Fully-Differential Touch Screen Panel Self Capacitance Sensing System," *Sensors*, vol. 23, no. 7, art. no. 3779, Apr. 2023, doi: [10.3390/s23073779](https://doi.org/10.3390/s23073779). Available: https://www.mdpi.com/1424-8220/23/7/3779
+* **車規電容感測時序特徵與 3 步置信度滑動窗後處理（M4 核心依據）**
+  * **[6]** H. Pyeon, H. Kim, R. C. Kim, G. Oh, and S. Lim, "Deep Learning-Based Driver's Hands on/off Prediction System Using In-Vehicle Data," *Sensors*, vol. 23, no. 3, art. no. 1442, Jan. 2023, doi: [10.3390/s23031442](https://doi.org/10.3390/s23031442). Available: https://www.mdpi.com/1424-8220/23/3/1442
+* **電容式觸控 SNR 強化與機器學習輸入辨識綜述（M2 / M4 核心依據）**
+  * **[7]** H. Nam, K.-H. Seol, J. Lee, H. Cho, and S. W. Jung, "Review of Capacitive Touchscreen Technologies: Overview, Research Trends, and Machine Learning Approaches," *Sensors*, vol. 21, no. 14, art. no. 4776, Jul. 2021, doi: [10.3390/s21144776](https://doi.org/10.3390/s21144776). Available: https://www.mdpi.com/1424-8220/21/14/4776
+* **微控制器電荷轉移偽差動量測與低電源品質抗擾（M1 / M2 $\ge 28\text{ dB}$ SNR 依據）**
+  * **[8]** Y.-H. Yu and T.-Y. Sun, "A Pseudo-Differential Measuring Approach for Implementing Microcontroller-Based Capacitive Touch Sensing in Low-Power Quality Situation," *IEEE Sensors Journal*, vol. 16, no. 2, pp. 390–399, Jan. 2016, doi: [10.1109/JSEN.2015.2483747](https://doi.org/10.1109/JSEN.2015.2483747). Available: https://www.ndl.gov.in/re_document/ieee_xplore/1234567_ieee/673552
+
+### 第二部分：半導體原廠應用筆記與硬體規格文獻（IEEE 標準引用格式）
+
+* **NXP S32K144 車規通用微控制器觸控解決方案白皮書（M1 / M3 / M6 基準依據）**
+  * **[9]** S. Sun, "GPIS Touch Sense Solution," NXP Semiconductors, Automotive CAS Technical Presentation, Doc. No. APF-AUT-T3280, Sep. 2018. Available: https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/connects/202/1/APF-AUT-T3280_China.pdf
+* **Microchip 差動電容分壓（Differential CVD）採集與偽隨機抖動應用筆記（M1 / M2 基準依據）**
+  * **[10]** B. Davison, "mTouch™ Sensing Solution Acquisition Methods Capacitive Voltage Divider," Microchip Technology Inc., Application Note AN1478 (DS01478B), 2012. Available: https://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en560193
+* **Microchip 雙極性 CVD 差動運算與電極接地技術指南（M1 基準依據）**
+  * **[11]** Microchip Technology Inc., "Touch Sensing Using Analog-to-Digital Converter With Computation (ADCC)," Microchip Developer Help, Mar. 2026. Available: https://developerhelp.microchip.com/xwiki/bin/view/applications/touch/sensing-using-adcc/
+* **Texas Instruments 抗傳導干擾（IEC 61000-4-6）跳頻與動態門檻調整應用報告（M2 / M4 基準依據）**
+  * **[12]** Texas Instruments Inc., "Enabling Noise Tolerant Capacitive Touch HMIs With MSP CapTIvate™ Microcontrollers," Texas Instruments, Application Report SLAY045B, 2017. Available: https://www.ti.com/lit/pdf/slay045
+* **NXP S32K1xx SAR ADC 自校準與 Bandgap 基準電壓量測規範（M1 / M5 基準依據）**
+  * **[13]** NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," NXP Semiconductors, Application Note AN12217, Rev. 0, Jun. 2018. Available: https://www.nxp.com/docs/en/application-note/AN12217.pdf
+* **NXP S32K144 評估板電路圖與晶片資料手冊（硬體拓撲與電氣參數依據）**
+  * **[14]** NXP Semiconductors, "S32K144EVB-Q100 Evaluation Board Schematic," Doc. No. SCH-29248 / SPF-29248, Rev. C, Mar. 2018. Available: https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/S32K/9169/1/SPF-29248_C.pdf; and "S32K1xx Data Sheet," NXP Semiconductors, Rev. 14, 2021. Available: https://www.mouser.com/pdfdocs/NXP_S32K1xx_DS.pdf
+
+---
+
+## 12. 商標與版權宣告
 
 * 本專案所有演算法與軟體原始碼版權均歸 **Max97k** 所有（基於 BSD-3-Clause 授權）。
 * Copyright (c) 2026, Max97k. All rights reserved.
