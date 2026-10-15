@@ -47,6 +47,18 @@ def main():
                     csv_records.append((idx, sa, sb, delta))
                     if len(csv_records) >= 100:
                         break
+            elif line.startswith("LIVE,"):
+                # Format: LIVE,A:2079,B:1745,Delta:-334,NetShift:-2 [IDLE]
+                try:
+                    parts = line.split(",")
+                    a_val = int(parts[1].split(":")[1])
+                    b_val = int(parts[2].split(":")[1])
+                    d_val = int(parts[3].split(":")[1])
+                    csv_records.append((len(csv_records), a_val, b_val, d_val))
+                    if len(csv_records) >= 100:
+                        break
+                except Exception:
+                    pass
 
     except KeyboardInterrupt:
         print("\n[*] Interrupted by user.")

@@ -23,13 +23,17 @@ void Telemetry_Init(uint32_t baudrate)
     /* Enable PORTC clock gate */
     IP_PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
 
-    /* Configure PTC7 as LPUART1_TX (ALT2) */
+    /* Configure OpenSDA Virtual COM on XS32K14WEVB-Q064:
+     * PTC8 = ALT2 (LPUART1_RX), PTC9 = ALT2 (LPUART1_TX) */
     IP_PORTC->PCR[TELEMETRY_UART_TX_PIN] = PORT_PCR_MUX(2U);
-    /* Configure PTC6 as LPUART1_RX (ALT2) */
     IP_PORTC->PCR[TELEMETRY_UART_RX_PIN] = PORT_PCR_MUX(2U);
 
+    /* Also configure PTC6 (RX) / PTC7 (TX) for J5 header expansion */
+    IP_PORTC->PCR[TELEMETRY_UART_EXP_TX] = PORT_PCR_MUX(2U);
+    IP_PORTC->PCR[TELEMETRY_UART_EXP_RX] = PORT_PCR_MUX(2U);
+
     /* Clock source selection: PCS=3 -> FIRCDIV2 (48.0 MHz) */
-    IP_PCC->PCCn[PCC_LPUART1_INDEX] = 0U; /* Clock must be disabled before changing PCS */
+    IP_PCC->PCCn[PCC_LPUART1_INDEX] &= ~PCC_PCCn_CGC_MASK;
     IP_PCC->PCCn[PCC_LPUART1_INDEX] = PCC_PCCn_PCS(3U) | PCC_PCCn_CGC_MASK;
 
     /* Reset control and baud registers */
@@ -39,19 +43,33 @@ void Telemetry_Init(uint32_t baudrate)
     /*
      * Baud Rate calculation:
      * Clock = 48,000,000 Hz
-     * OSR = 15 (16x oversampling)
-     * SBR = 48,000,000 / (16 * 115,200) = 26.0416 -> SBR = 26
-     * Actual Baud = 48,000,000 / (16 * 26) = 115,384 bps (Error: +0.16%)
+     * OSR = 25 (26x oversampling)
+     * SBR = 48,000,000 / (26 * 115,200) = 16.0256 -> SBR = 16
+     * Actual Baud = 48,000,000 / (26 * 16) = 115,384 bps (Error: +0.16%)
      */
-    IP_LPUART1->BAUD = LPUART_BAUD_OSR(15U) | LPUART_BAUD_SBR(26U);
+    IP_LPUART1->BAUD = LPUART_BAUD_OSR(25U) | LPUART_BAUD_SBR(16U);
 
-    /* Enable Transmitter */
-    IP_LPUART1->CTRL = LPUART_CTRL_TE_MASK;
+    /* Enable Transmitter and Receiver */
+    IP_LPUART1->CTRL = LPUART_CTRL_TE_MASK | LPUART_CTRL_RE_MASK;
 }
 
 void Telemetry_SendChar(char c)
 {
     uint32_t guard = 0U;
+
+    /* Auto-carriage-return before newline */
+    if (c == '\n')
+    {
+        while ((!(IP_LPUART1->STAT & LPUART_STAT_TDRE_MASK)) && (guard < TIMEOUT_GUARD_CYCLES))
+        {
+            guard++;
+        }
+        if (guard < TIMEOUT_GUARD_CYCLES)
+        {
+            IP_LPUART1->DATA = (uint32_t)'\r';
+        }
+        guard = 0U;
+    }
 
     /* Bounded wait for Transmit Data Register Empty (TDRE) */
     while ((!(IP_LPUART1->STAT & LPUART_STAT_TDRE_MASK)) && (guard < TIMEOUT_GUARD_CYCLES))

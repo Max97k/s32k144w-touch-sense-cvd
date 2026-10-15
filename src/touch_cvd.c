@@ -115,7 +115,7 @@ boolean Touch_Adc0_Calibrate(void)
     uint32_t guard = 0U;
 
     /* 1. Enable ADC0 clock gate with 48.0 MHz FIRC source (PCS=3) */
-    IP_PCC->PCCn[PCC_ADC0_INDEX] = 0U;
+    IP_PCC->PCCn[PCC_ADC0_INDEX] &= ~PCC_PCCn_CGC_MASK;
     IP_PCC->PCCn[PCC_ADC0_INDEX] = PCC_PCCn_PCS(3U) | PCC_PCCn_CGC_MASK;
 
     /* 2. Configure ADC0: 12-bit mode, Clock / 2 (24 MHz for calibration, well within 20~50 MHz RM spec) */

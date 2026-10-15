@@ -34,3 +34,4 @@ csv_output.csv
 gdb_flash.cmd
 __pycache__/
 *.pyc
+.default_mex

@@ -17,7 +17,7 @@ def main():
         sys.exit(1)
 
     pegdb = r"C:\NXP\S32DS.3.6.11\eclipse\plugins\com.pemicro.debug.gdbjtag.pne_6.1.8.202603121731\win32\pegdbserver_console.exe"
-    gdb = r"C:\NXP\S32DS.3.6.11\S32DS\tools\gdb-arm\arm32-eabi\bin\arm-none-eabi-gdb.exe"
+    gdb = r"C:\NXP\S32DS.3.6.11\eclipse\plugins\com.pemicro.debug.gdbjtag.pne_6.1.8.202603121731\win32\gdb\arm-none-eabi-gdb.exe"
     script_path = os.path.join(repo_root, "gdb_flash.cmd")
 
     if not os.path.exists(pegdb) or not os.path.exists(gdb):
@@ -34,17 +34,21 @@ def main():
         "-device=NXP_S32K1xx_S32K144WF512M8",
         "-serverport=7224",
         "-interface=OPENSDA",
-        "-use_swd=1"
+        "-port=USB1"
     ]
-    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    time.sleep(5)
+    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(3.5)
 
     elf_posix = elf_path.replace("\\", "/")
     with open(script_path, "w") as f:
-        f.write(f"""target remote localhost:7224
-load {elf_posix}
+        f.write(f"""set pagination off
+set confirm off
+target remote localhost:7224
 monitor reset
-continue &
+load {elf_posix}
+tb main
+continue
+detach
 quit
 """)
 
