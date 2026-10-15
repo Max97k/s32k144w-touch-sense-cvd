@@ -85,7 +85,7 @@ void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_co
     }
 }
 
-void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread, boolean *out_spike_rejected)
+void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread)
 {
     if ((burst_samples == NULL_PTR) || (out_z_meas == NULL_PTR) || (out_spread == NULL_PTR))
     {
@@ -96,10 +96,6 @@ void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *
     {
         *out_z_meas = (float)burst_samples[0];
         *out_spread = 0.0f;
-        if (out_spike_rejected != NULL_PTR)
-        {
-            *out_spike_rejected = FALSE;
-        }
         return;
     }
 
@@ -142,19 +138,47 @@ void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *
 
     /* 4. High-frequency noise spread metric: 7th item minus 3rd item (0-indexed: [6] - [2]) */
     *out_spread = (float)(sorted[end_idx] - sorted[start_idx]);
+}
 
-    /* 5. Detect EFT / ESD outlier spike rejection (anomaly indicator for diagnostics & M4/M5) */
-    if (out_spike_rejected != NULL_PTR)
+boolean Touch_DetectBurstSpike(const int16_t *burst_samples, uint8_t count)
+{
+    if ((burst_samples == NULL_PTR) || (count < 5U))
     {
-        if (((sorted[n - 1U] - sorted[end_idx]) > 15) || ((sorted[start_idx] - sorted[0]) > 15))
-        {
-            *out_spike_rejected = TRUE;
-        }
-        else
-        {
-            *out_spike_rejected = FALSE;
-        }
+        return FALSE;
     }
+
+    int16_t sorted[TOUCH_BURST_SAMPLE_COUNT];
+    uint8_t n = (count <= TOUCH_BURST_SAMPLE_COUNT) ? count : TOUCH_BURST_SAMPLE_COUNT;
+
+    for (uint8_t i = 0U; i < n; i++)
+    {
+        sorted[i] = burst_samples[i];
+    }
+
+    for (uint8_t i = 1U; i < n; i++)
+    {
+        int16_t key = sorted[i];
+        int8_t j = (int8_t)(i - 1U);
+
+        while ((j >= 0) && (sorted[j] > key))
+        {
+            sorted[j + 1] = sorted[j];
+            j--;
+        }
+        sorted[j + 1] = key;
+    }
+
+    const uint8_t start_idx = TOUCH_TRIM_DISCARD_EACH;
+    const uint8_t end_idx = (uint8_t)(n - 1U - TOUCH_TRIM_DISCARD_EACH);
+
+    int16_t high_outlier_gap = sorted[n - 1U] - sorted[end_idx];
+    int16_t low_outlier_gap  = sorted[start_idx] - sorted[0U];
+
+    if ((high_outlier_gap > TOUCH_SPIKE_REJECT_TH_LSB) || (low_outlier_gap > TOUCH_SPIKE_REJECT_TH_LSB))
+    {
+        return TRUE;
+    }
+    return FALSE;
 }
 
 void Touch_Kalman_Init(Touch_Kalman_t *kf, float initial_val, float q_proc, float r_base, float alpha)

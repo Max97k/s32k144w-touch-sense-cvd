@@ -144,15 +144,25 @@
 - **5 秒慢速貼近測試**：進入預備區（$0.4\times\text{TH}$）後基線完全凍結，漂移量 $0.000\text{ LSB}$，零吞噬真實觸摸電容。
 - **溫漂追蹤與異物長按超時**：加熱溫漂下 delta 維持在 $\pm 3\text{ LSB}$ 內；硬幣長按於 $14.98\text{ s}$ 準時觸發超時重置基線並釋放觸控。
 
-### Milestone 4：時序幾何特徵分類器 (TinyML) 與水滴拒斥 (`v1.0.4-m4`)
-- **4 大特徵提取**：上升斜率（Attack Slope）、動態信噪比（Dynamic SNR）、平臺方差（Plateau Variance）、時域能量（Energy）。
-- **3 步置信度滑動窗**：$\text{trigger} = 0.65, \text{release} = 0.35$ 雙門檻遲滯。
-- **混淆矩陣驗證**：
-  - 裸手快速按壓 TPR = 100.0%（反應延遲 $45.0\text{ ms}$）
-  - 手套/壓克力板按壓 TPR = 100.0%（反應延遲 $53.1\text{ ms}$）
-  - 水滴噴灑/覆蓋 FPR = 0.0%（拒斥率 20/20）
-  - 邊緣懸停掠過 FPR = 0.0%（拒斥率 20/20）
-- **SysTick 硬體鎖定**：精確 $15.000\text{ ms}$ 訊框同步，分相遙測輸出維持迴圈耗時 $< 5.6\text{ ms}$。
+### Milestone 4：時序幾何特徵分類器 (TinyML) 與水滴拒斥 (`v1.0.4-m4-rev2`)
+- **4 大時域幾何特徵提取器**：
+  - 上升斜率（Attack Slope）：10 週期滑動窗內之最大 2 週期上升斜率，有效區分水滴緩慢滲透爬行。
+  - 線性動態信噪比（Linear Dynamic SNR）：$\text{dyn\_snr} = \Delta D / \max(\text{mean\_spread}_4 + 0.5, 0.8)$，捨棄高耗時之浮點對數 `log10f`，大幅降低單次迴圈執行開銷。
+  - 正規化平臺二階差分曲率（Normalized Curvature Variance）：$\text{plateau\_var} = (0.6\cdot \text{curv}_1 + 0.4\cdot \text{curv}_2) / \max(\text{max\_window\_delta}, 15.0)$，分母以訊窗峰值振幅正規化，徹底解決真實手指 $+1500\text{ LSB}$ 振幅導致的方差溢位誤判問題。
+  - 包絡維持比率（Envelope Sustain Ratio）：$\text{sustain\_ratio} = \Delta D / \text{max\_window\_delta}$，迅速識別單週期掠過瞬態與邊緣劃過誤觸發。
+- **動態門檻調整 (DTA: Dynamic Threshold Adjustment)**：門檻值依即時展頻底噪動態調整於 $34.0 \sim 58.0\text{ LSB}$，寧靜環境下降低門檻可感應 2mm 壓克力薄手套，高噪/水滴環境下抬高門檻拒斥干擾。
+- **3 步置信度滑動窗遲滯濾波**：$\text{trigger} = 0.64, \text{release} = 0.38$ 雙門檻平滑遲滯，搭配軟邊際評分機制。
+- **預備區 8 秒防死鎖自癒**：在 `touch_baseline.c` Zone 2 滯留 $\ge 8.0\text{ s}$ 觸發強制基準自癒，防止液滴長期殘留鎖死基準線。
+- **140 筆全場景混淆矩陣驗證 (`tests/test_m4_contract.py`)**：
+  - 裸手快速點擊與長按（50 次試驗）：檢出率 TPR = 100.0%（量化標準 $\ge 98\%$）
+  - 2mm 壓克力板/薄手套（50 次試驗）：檢出率 TPR = 100.0%（量化標準 $\ge 98\%$）
+  - 水滴噴灑與水霧衝擊（20 次試驗）：誤報率 FPR = 0.0%（量化標準 $= 0\%$）
+  - 邊緣掠過與瞬態劃過（20 次試驗）：誤報率 FPR = 0.0%（量化標準 $= 0\%$）
+  - 平均觸控觸發延遲：$39.9\text{ ms}$（量化標準 $\le 60\sim 90\text{ ms}$）
+  - 驗證資料集產出：[`m4_envelope_dataset.csv`](m4_envelope_dataset.csv)
+- **實體 EVB 硬體實測驗證**：
+  - 0 編譯錯誤、0 警告（GCC 10.2），成功燒錄至 XS32K14WEVB-Q064。
+  - 即時 66.8 Hz 串流遙測記錄：[`tests/m_post_expert_test.csv`](tests/m_post_expert_test.csv)。
 
 ### Milestone 5：雙通道在線硬體缺陷診斷與 ASIL-B 安全引擎 (`v1.0.5-m5`)
 - **4 大監控指標**：

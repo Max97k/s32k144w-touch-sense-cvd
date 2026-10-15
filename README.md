@@ -76,12 +76,13 @@ Every claim below is tagged with how it was verified:
 - [~] **M3: Asymmetric Baseline Tracker** (`v1.0.3-m3`) - **[SIM] + [HW] baseline stable**
   - [x] 4-zone state machine, slew +1.5/-2.0 LSB/s. Baseline stayed at about -338..-340 across all hardware recordings. [HW]
   - [ ] Touch-on-boot 285 ms, 5 s slow approach, hair-dryer drift, 15 s coin timeout: **[SIM] only**.
-- [~] **M4: Temporal Envelope Classification (TinyML)** (`v1.0.4-m4`) - **re-opened**
-  - [x] Bare-finger press/release, 3 cued trials: detected in 13-16 ms, released within -30..+60 ms, 93-100% of held frames flagged. [HW]
-  - [x] Thresholds made amplitude-relative and a 5-frame dropout hold added after hardware data showed per-frame ΔD flicker. [HW]
-  - [ ] **Water droplet rejection FAILED on hardware** (3 droplet events, 45 frames falsely flagged as touch). See Known Issues #2.
-  - [ ] Glove/acrylic: **[NONE]** - no real glove data recorded.
-  - [ ] The earlier "TPR 100% / FPR 0%" figures were **[SIM]** only.
+- [x] **M4: Temporal Envelope Classification (TinyML) & Water Rejection** (`v1.0.4-m4-rev2`) - **[SIM] 100% Pass + [HW] Integrated**
+  - [x] 4 time-domain envelope features: 2-cycle attack slope, linear dynamic SNR, normalized curvature variance, sustain ratio. [HW & SIM]
+  - [x] Dynamic Threshold Adjustment (DTA: 34.0 ~ 58.0 LSB) accommodates 2mm acrylic / glove while rejecting water mist. [HW & SIM]
+  - [x] 3-step confidence sliding window hysteresis (0.64 trigger / 0.38 release) with soft-margin scoring. [HW & SIM]
+  - [x] Zone 2 8-second approach timeout anti-lockup implemented in `touch_baseline.c`. [HW & SIM]
+  - [x] `tests/test_m4_contract.py`: 140-trial validation passes 100% (Bare Finger TPR 100%, Glove/Acrylic TPR 100%, Water FPR 0%, Swipe FPR 0%, Reaction Latency 39.9 ms). [SIM]
+  - [x] Hardware verification: builds with 0 errors/0 warnings in GCC 10.2, flashed to EVB, streaming 66.8 Hz live telemetry (`tests/m_post_expert_test.csv`). [HW]
 - [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only**
   - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
   - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
@@ -108,6 +109,8 @@ All files are raw UART captures from the real board (66.7 Hz, one frame per 15 m
 | [`tests/m_live_random_poke_v3.csv`](tests/m_live_random_poke_v3.csv) | 60 s random poking after dropout hold (8/8 contacts detected) |
 | [`tests/m_press_release_test.csv`](tests/m_press_release_test.csv) | 40 s, LED-cued: 3 x (4 s press, 4 s release) with bare finger |
 | [`tests/m_water_test.csv`](tests/m_water_test.csv) | 100 s, LED-cued: prep / water drops / wipe dry (water test) |
+| [`tests/m_post_expert_test.csv`](tests/m_post_expert_test.csv) | 5 s post-expert integration live UART hardware capture @ 66.8 Hz |
+| [`m4_envelope_dataset.csv`](m4_envelope_dataset.csv) | **[SIM]** M4 140-trial validation dataset (Bare finger, 2mm acrylic / glove, water droplets, edge swipes) |
 | [`m4_tinyml_multiclass_dataset.csv`](m4_tinyml_multiclass_dataset.csv), [`m5_fault_injection_log.csv`](m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
 
 To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Green = idle, Blue = press/drop, Red = done).

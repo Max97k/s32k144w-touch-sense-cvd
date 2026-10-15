@@ -1,7 +1,7 @@
 /*==================================================================================================
 *   Project              : S32K144W Touch Sensing CVD Algorithm
 *   Platform             : CORTEXM
-*   Peripheral           : Temporal Feature Envelope & TinyML Classifier Engine
+*   Peripheral           : TinyML Envelope Classifier & Water Droplet Rejection Engine (M4)
 *   Dependencies         : touch_tinyml.h
 *
 *   Autosar Version      : 4.7.0
@@ -12,323 +12,270 @@
 ==================================================================================================*/
 
 #include "touch_tinyml.h"
-#include <math.h>
+
+/*==================================================================================================
+*                                   PRIVATE HELPER FUNCTIONS
+==================================================================================================*/
+
+static inline float AbsFloat(float v)
+{
+    return (v >= 0.0f) ? v : -v;
+}
+
+static inline float ClampFloat(float v, float lo, float hi)
+{
+    if (v < lo)
+    {
+        return lo;
+    }
+    if (v > hi)
+    {
+        return hi;
+    }
+    return v;
+}
 
 /*==================================================================================================
 *                                   FUNCTION IMPLEMENTATIONS
 ==================================================================================================*/
 
-void Touch_TinyML_Init(Touch_TinyMLClassifier_t *classifier)
+void Touch_TinyML_Init(Touch_TinyML_Classifier_t *clf)
 {
-    if (classifier == NULL_PTR)
+    if (clf == NULL_PTR)
     {
         return;
     }
 
     for (uint8_t i = 0U; i < TOUCH_TINYML_WINDOW_SIZE; i++)
     {
-        classifier->history_delta[i]  = 0.0f;
-        classifier->history_spread[i] = 1.0f;
+        clf->delta_win[i]  = 0.0f;
+        clf->spread_win[i] = 0.6f;
     }
-    classifier->head_idx     = 0U;
-    classifier->sample_count = 0U;
 
-    for (uint8_t i = 0U; i < TOUCH_TINYML_CONF_WINDOW_SIZE; i++)
+    for (uint8_t j = 0U; j < TOUCH_TINYML_CONF_WINDOW; j++)
     {
-        classifier->conf_window[i] = 0.0f;
+        clf->conf_win[j] = 0.0f;
     }
-    classifier->conf_head = 0U;
 
-    classifier->features.attack_slope      = 0.0f;
-    classifier->features.dynamic_snr_db    = 0.0f;
-    classifier->features.plateau_variance  = 0.0f;
-    classifier->features.release_symmetry  = 1.0f;
-    classifier->features.peak_delta        = 0.0f;
-    classifier->features.contact_duration  = 0U;
-
-    classifier->detected_class         = TOUCH_CLASS_NONE;
-    classifier->confidence             = 0.0f;
-    classifier->is_valid_touch         = FALSE;
-    classifier->total_classifications  = 0U;
-    classifier->water_rejections_count = 0U;
-    classifier->hover_rejections_count = 0U;
+    clf->win_head                       = 0U;
+    clf->sample_count                   = 0U;
+    clf->active_sustain_cycles          = 0U;
+    clf->features.attack_slope          = 0.0f;
+    clf->features.dynamic_snr           = 0.0f;
+    clf->features.plateau_variance      = 0.0f;
+    clf->features.release_symmetry      = 0.0f;
+    clf->features.dta_threshold         = TOUCH_DTA_GLOVE_MIN_LSB;
+    clf->raw_confidence                 = 0.0f;
+    clf->smoothed_confidence            = 0.0f;
+    clf->confidence                     = 0.0f;
+    clf->predicted_class                = TOUCH_CLASS_IDLE;
+    clf->is_valid_touch                 = FALSE;
 }
 
-void Touch_TinyML_ExtractFeatures(Touch_TinyMLClassifier_t *classifier)
+boolean Touch_TinyML_Update(Touch_TinyML_Classifier_t *clf, float delta, float spread, boolean spike_rejected)
 {
-    if ((classifier == NULL_PTR) || (classifier->sample_count == 0U))
-    {
-        return;
-    }
-
-    /* 1. Linearize chronological order: ordered[0] is oldest, ordered[N-1] is newest */
-    float ordered_delta[TOUCH_TINYML_WINDOW_SIZE];
-    float ordered_spread[TOUCH_TINYML_WINDOW_SIZE];
-    uint8_t n = classifier->sample_count;
-
-    for (uint8_t i = 0U; i < n; i++)
-    {
-        uint8_t idx = (uint8_t)((classifier->head_idx + TOUCH_TINYML_WINDOW_SIZE - n + i) % TOUCH_TINYML_WINDOW_SIZE);
-        ordered_delta[i]  = classifier->history_delta[idx];
-        ordered_spread[i] = classifier->history_spread[idx];
-    }
-
-    /* 2. Compute Peak Delta, Sum Spread, and Contact Duration */
-    float peak = 0.0f;
-    uint8_t duration = 0U;
-    float sum_spread = 0.0f;
-
-    for (uint8_t i = 0U; i < n; i++)
-    {
-        if (ordered_delta[i] > peak)
-        {
-            peak = ordered_delta[i];
-        }
-        sum_spread += ordered_spread[i];
-    }
-
-    /* Contact duration: count consecutive recent samples >= 20.0 LSB (approach threshold) */
-    for (int8_t i = (int8_t)(n - 1U); i >= 0; i--)
-    {
-        if (ordered_delta[i] >= 20.0f)
-        {
-            duration++;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    classifier->features.peak_delta       = peak;
-    classifier->features.contact_duration = duration;
-
-    /* 3. Compute Attack Slope: S_attack = max_i (delta[i] - delta[i-2]) / (2 * dt) */
-    float max_slope = 0.0f;
-    if (n >= 3U)
-    {
-        for (uint8_t i = 2U; i < n; i++)
-        {
-            float s = (ordered_delta[i] - ordered_delta[i - 2U]) / 2.0f;
-            if (s > max_slope)
-            {
-                max_slope = s;
-            }
-        }
-    }
-    else if (n >= 2U)
-    {
-        max_slope = ordered_delta[n - 1U] - ordered_delta[n - 2U];
-    }
-    else
-    {
-        max_slope = 0.0f;
-    }
-    classifier->features.attack_slope = (max_slope > 0.0f) ? max_slope : 0.0f;
-
-    /* 4. Compute Plateau Variance (stability during contact)
-     * Evaluated ONLY when contact has persisted for >= 4 cycles (60 ms),
-     * preventing rising attack edges from artificially inflating variance. */
-    if (classifier->features.contact_duration >= 4U)
-    {
-        float p_sum = 0.0f;
-        for (uint8_t i = n - 4U; i < n; i++)
-        {
-            p_sum += ordered_delta[i];
-        }
-        float p_mean = p_sum / 4.0f;
-
-        float var_sum = 0.0f;
-        for (uint8_t i = n - 4U; i < n; i++)
-        {
-            float diff = ordered_delta[i] - p_mean;
-            var_sum += (diff * diff);
-        }
-        /* Amplitude-relative variance: unchanged for signals <= 50 LSB, scaled for strong
-         * contacts (measured on hardware: real finger gives +1300 LSB, noise ~3 LSB). */
-        float scale = (p_mean > 50.0f) ? (p_mean / 50.0f) : 1.0f;
-        classifier->features.plateau_variance = (var_sum / 4.0f) / (scale * scale);
-    }
-    else
-    {
-        classifier->features.plateau_variance = 0.0f;
-    }
-
-    /* 5. Compute Dynamic SNR */
-    float avg_spread = (n > 0U) ? (sum_spread / (float)n) : 1.0f;
-    if (avg_spread < 0.2f)
-    {
-        avg_spread = 0.2f;
-    }
-    if (peak > 0.5f)
-    {
-        classifier->features.dynamic_snr_db = 20.0f * log10f(peak / avg_spread);
-    }
-    else
-    {
-        classifier->features.dynamic_snr_db = 0.0f;
-    }
-
-    /* 6. Release Symmetry */
-    classifier->features.release_symmetry = 1.0f;
-}
-
-Touch_ClassificationClass_t Touch_TinyML_Update(Touch_TinyMLClassifier_t *classifier, float delta, float spread)
-{
-    if (classifier == NULL_PTR)
-    {
-        return TOUCH_CLASS_NONE;
-    }
-
-    classifier->total_classifications++;
-
-    /* 1. Append new sample into circular history buffer */
-    classifier->history_delta[classifier->head_idx]  = delta;
-    classifier->history_spread[classifier->head_idx] = spread;
-    classifier->head_idx = (uint8_t)((classifier->head_idx + 1U) % TOUCH_TINYML_WINDOW_SIZE);
-    if (classifier->sample_count < TOUCH_TINYML_WINDOW_SIZE)
-    {
-        classifier->sample_count++;
-    }
-
-    /* 2. Extract multi-dimensional temporal geometric envelope features */
-    Touch_TinyML_ExtractFeatures(classifier);
-
-    Touch_EnvelopeFeatures_t *feat = &classifier->features;
-    Touch_ClassificationClass_t inst_class = TOUCH_CLASS_NONE;
-    float inst_prob = 0.0f;
-
-    /* Amplitude-relative spread: unchanged for delta <= 50 LSB, scaled for strong contacts */
-    float amp_scale = (delta > 50.0f) ? (delta / 50.0f) : 1.0f;
-    spread = spread / amp_scale;
-
-    /* 3. TinyML Decision Tree Feature Classification Engine */
-    if (feat->peak_delta < 20.0f)
-    {
-        /* Quiescent / Untouched */
-        inst_class = TOUCH_CLASS_NONE;
-        inst_prob  = 0.0f;
-    }
-    else if ((feat->peak_delta >= 25.0f) && (feat->contact_duration <= 2U) && (delta < 25.0f))
-    {
-        /* Edge Swipe / Grazing Hover: short transient burst (< 45 ms) without sustained contact */
-        inst_class = TOUCH_CLASS_EDGE_HOVER;
-        inst_prob  = 0.05f;
-        classifier->hover_rejections_count++;
-    }
-    else if ((feat->peak_delta <= TOUCH_WATER_MAX_DELTA_LSB) && (feat->dynamic_snr_db < 32.0f) && (feat->attack_slope < TOUCH_MIN_ATTACK_SLOPE))
-    {
-        /* Water Droplet / Condensation: low-to-moderate delta, lacking human capacitive coupling */
-        inst_class = TOUCH_CLASS_WATER_DROPLET;
-        inst_prob  = 0.02f;
-        classifier->water_rejections_count++;
-    }
-    else if ((feat->plateau_variance > TOUCH_MAX_PLATEAU_VAR_LSB2) && (feat->contact_duration >= 4U))
-    {
-        /* Water Droplet Splash / Slosh: unstable contact plateau with meniscus ringing oscillation */
-        inst_class = TOUCH_CLASS_WATER_DROPLET;
-        inst_prob  = 0.05f;
-        classifier->water_rejections_count++;
-    }
-    else if ((feat->peak_delta <= TOUCH_WATER_MAX_DELTA_LSB) && (feat->dynamic_snr_db < 32.0f) && (feat->attack_slope < TOUCH_MIN_ATTACK_SLOPE))
-    {
-        /* Water Droplet / Condensation: low-to-moderate delta, lacking human capacitive coupling */
-        inst_class = TOUCH_CLASS_WATER_DROPLET;
-        inst_prob  = 0.02f;
-        classifier->water_rejections_count++;
-    }
-    else if ((feat->peak_delta <= TOUCH_WATER_MAX_DELTA_LSB) && (spread > 1.5f))
-    {
-        /* Water spray mist: high dispersion metric */
-        inst_class = TOUCH_CLASS_WATER_DROPLET;
-        inst_prob  = 0.02f;
-        classifier->water_rejections_count++;
-    }
-    else if ((feat->peak_delta >= TOUCH_MIN_BARE_DELTA_LSB) &&
-             (feat->attack_slope >= TOUCH_MIN_ATTACK_SLOPE) &&
-             (feat->plateau_variance <= TOUCH_MAX_PLATEAU_VAR_LSB2))
-    {
-        /* Verified Bare Finger: strong signal, fast attack, stable fleshy plateau */
-        inst_class = TOUCH_CLASS_BARE_FINGER;
-        inst_prob  = 1.0f;
-    }
-    else if ((feat->peak_delta >= TOUCH_MIN_GLOVE_DELTA_LSB) &&
-             (feat->contact_duration >= 2U) &&
-             (feat->plateau_variance <= TOUCH_MAX_PLATEAU_VAR_LSB2) &&
-             (spread <= 1.2f))
-    {
-        /* Verified Glove / Acrylic Overlay: moderate signal with stable human contact plateau */
-        inst_class = TOUCH_CLASS_GLOVE_OVERLAY;
-        inst_prob  = 1.0f;
-    }
-    else if ((feat->peak_delta >= 50.0f) &&
-             (feat->contact_duration >= 2U) &&
-             (feat->plateau_variance <= TOUCH_MAX_PLATEAU_VAR_LSB2) &&
-             (spread <= 1.2f))
-    {
-        /* Fallback threshold touch with verified stable contact and low noise */
-        inst_class = TOUCH_CLASS_BARE_FINGER;
-        inst_prob  = 0.85f;
-    }
-    else
-    {
-        inst_class = TOUCH_CLASS_NONE;
-        inst_prob  = 0.10f;
-    }
-
-    classifier->detected_class = inst_class;
-
-    /* 4. Multi-Cycle Confidence Sliding Window Smoothing */
-    classifier->conf_window[classifier->conf_head] = inst_prob;
-    classifier->conf_head = (uint8_t)((classifier->conf_head + 1U) % TOUCH_TINYML_CONF_WINDOW_SIZE);
-
-    float sum_conf = 0.0f;
-    for (uint8_t i = 0U; i < TOUCH_TINYML_CONF_WINDOW_SIZE; i++)
-    {
-        sum_conf += classifier->conf_window[i];
-    }
-    classifier->confidence = sum_conf / (float)TOUCH_TINYML_CONF_WINDOW_SIZE;
-
-    /* 5. 3-Step Confidence Hysteresis Filtering */
-    boolean has_evidence = ((inst_class == TOUCH_CLASS_BARE_FINGER) || (inst_class == TOUCH_CLASS_GLOVE_OVERLAY));
-    if (classifier->is_valid_touch)
-    {
-        /* Hardware shows isolated frames reading untouched during real contact:
-         * hold the touch until 5 consecutive frames (75 ms) lack evidence. */
-        if (has_evidence)
-        {
-            classifier->miss_cnt = 0U;
-        }
-        else if (classifier->miss_cnt < 255U)
-        {
-            classifier->miss_cnt++;
-        }
-        else
-        {
-            /* saturated */
-        }
-        if (classifier->miss_cnt >= 5U)
-        {
-            classifier->is_valid_touch = FALSE;
-        }
-    }
-    else
-    {
-        classifier->miss_cnt = 0U;
-        if ((classifier->confidence >= TOUCH_CONF_TRIGGER_THRESHOLD) && has_evidence)
-        {
-            classifier->is_valid_touch = TRUE;
-        }
-    }
-
-    return classifier->detected_class;
-}
-
-boolean Touch_TinyML_IsValidTouch(const Touch_TinyMLClassifier_t *classifier)
-{
-    if (classifier == NULL_PTR)
+    if (clf == NULL_PTR)
     {
         return FALSE;
     }
-    return classifier->is_valid_touch;
+
+    /* 1. Push new observation into deterministic 10-sample circular sliding window */
+    clf->delta_win[clf->win_head]  = delta;
+    clf->spread_win[clf->win_head] = spread;
+
+    uint8_t newest_idx = clf->win_head;
+    clf->win_head = (uint8_t)((clf->win_head + 1U) % TOUCH_TINYML_WINDOW_SIZE);
+    if (clf->sample_count < TOUCH_TINYML_WINDOW_SIZE)
+    {
+        clf->sample_count++;
+    }
+
+    /* Reconstruct chronological sequence d_seq[0 .. 9] where d_seq[9] is newest */
+    float d_seq[TOUCH_TINYML_WINDOW_SIZE];
+    float s_seq[TOUCH_TINYML_WINDOW_SIZE];
+    for (uint8_t i = 0U; i < TOUCH_TINYML_WINDOW_SIZE; i++)
+    {
+        uint8_t idx = (uint8_t)((newest_idx + 1U + i) % TOUCH_TINYML_WINDOW_SIZE);
+        d_seq[i] = clf->delta_win[idx];
+        s_seq[i] = clf->spread_win[idx];
+    }
+
+    /* 2. Compute local 4-cycle average burst spread & Dynamic Threshold Adjustment (DTA) */
+    float mean_spread_4 = 0.25f * (s_seq[6] + s_seq[7] + s_seq[8] + s_seq[9]);
+
+    /* DTA lowers entry threshold to 34 LSB in quiet conditions (enabling 2mm acrylic / thin glove),
+     * and raises it up to 58 LSB when high-frequency spread indicates water mist or EMI */
+    float dta_th = TOUCH_DTA_GLOVE_MIN_LSB + (6.0f * (mean_spread_4 - 0.8f));
+    dta_th = ClampFloat(dta_th, TOUCH_DTA_GLOVE_MIN_LSB, TOUCH_DTA_NOISY_MAX_LSB);
+    clf->features.dta_threshold = dta_th;
+
+    /* 3. Extract Feature 1: Attack Slope (Max 2-cycle positive rise across the 10-point window) */
+    float max_attack_slope = 0.0f;
+    float max_window_delta = 0.0f;
+    for (uint8_t i = 0U; i < TOUCH_TINYML_WINDOW_SIZE; i++)
+    {
+        if (d_seq[i] > max_window_delta)
+        {
+            max_window_delta = d_seq[i];
+        }
+        if (i >= 2U)
+        {
+            float slope_2 = d_seq[i] - d_seq[i - 2U];
+            if (slope_2 > max_attack_slope)
+            {
+                max_attack_slope = slope_2;
+            }
+        }
+    }
+    clf->features.attack_slope = max_attack_slope;
+
+    /* 4. Extract Feature 2: Dynamic Peak SNR (Nam et al., Sensors 2021) */
+    float snr_denom = mean_spread_4 + 0.5f;
+    if (snr_denom < 0.8f)
+    {
+        snr_denom = 0.8f;
+    }
+    float dyn_snr = (delta > 0.0f) ? (delta / snr_denom) : 0.0f;
+    clf->features.dynamic_snr = dyn_snr;
+
+    /* 5. Extract Feature 3: Plateau Stability / Normalized Curvature Variance
+     * Evaluates 2nd-order difference oscillation over recent 4 cycles:
+     * Smooth finger landing/hold has low curvature relative to amplitude;
+     * splashing water droplets or single-cycle edge swipes have high reversal curvature. */
+    float diff1_a = d_seq[9] - d_seq[8];
+    float diff1_b = d_seq[8] - d_seq[7];
+    float diff1_c = d_seq[7] - d_seq[6];
+    float curv_1  = AbsFloat(diff1_a - diff1_b);
+    float curv_2  = AbsFloat(diff1_b - diff1_c);
+    float norm_denom = (max_window_delta > 15.0f) ? max_window_delta : 15.0f;
+    float plateau_var = ((0.6f * curv_1) + (0.4f * curv_2)) / norm_denom;
+    clf->features.plateau_variance = plateau_var;
+
+    /* 6. Extract Feature 4: Envelope Sustain & Release Symmetry Ratio */
+    float sustain_ratio = (max_window_delta > 5.0f) ? (delta / max_window_delta) : 0.0f;
+    sustain_ratio = ClampFloat(sustain_ratio, 0.0f, 1.0f);
+    clf->features.release_symmetry = sustain_ratio;
+
+    /* Track consecutive cycles above active DTA threshold (with hysteresis) */
+    float active_gate = clf->is_valid_touch ? (dta_th * TOUCH_DTA_HYSTERESIS_RATIO) : dta_th;
+    if (delta >= active_gate)
+    {
+        if (clf->active_sustain_cycles < 250U)
+        {
+            clf->active_sustain_cycles++;
+        }
+    }
+    else
+    {
+        clf->active_sustain_cycles = 0U;
+    }
+
+    /* 7. TinyML Decision Tree & Soft-Margin Confidence Scoring */
+    float p_inst = 0.0f;
+    Touch_TinyML_Class_t pred_class = TOUCH_CLASS_IDLE;
+
+    if (delta < 15.0f)
+    {
+        /* Clearly idle */
+        p_inst = 0.0f;
+        pred_class = TOUCH_CLASS_IDLE;
+    }
+    else if ((mean_spread_4 > TOUCH_FEAT_MAX_WATER_SPREAD) ||
+             (spike_rejected && (clf->active_sustain_cycles <= 1U)) ||
+             ((delta < dta_th) && (max_attack_slope < TOUCH_FEAT_MIN_ATTACK_SLOPE)) ||
+             ((dyn_snr < TOUCH_FEAT_MIN_DYNAMIC_SNR) && (delta < 65.0f)))
+    {
+        /* Water Droplet Drip / Mist Spray Signature:
+         * - Detached droplet has weak floating coupling (< dta_th) or slow film creep, OR
+         * - Droplet impact/mist causes elevated high-frequency spread (> 3.2 LSB) and low dynamic SNR */
+        p_inst = 0.08f;
+        pred_class = TOUCH_CLASS_REJECT_WATER;
+    }
+    else if ((sustain_ratio < TOUCH_FEAT_MIN_SUSTAIN_RATIO) ||
+             ((clf->active_sustain_cycles <= 1U) && (diff1_a < -8.0f)) ||
+             ((plateau_var > TOUCH_FEAT_MAX_CURVATURE_RATIO) && (clf->active_sustain_cycles < 3U)))
+    {
+        /* Edge Grazing / Accidental Brush-By Signature:
+         * - Brief 1~2 cycle transient peak that immediately reverses (diff1_a < -8 LSB or low sustain_ratio) */
+        p_inst = 0.12f;
+        pred_class = TOUCH_CLASS_REJECT_SWIPE;
+    }
+    else if (delta >= active_gate)
+    {
+        /* Valid Human Touch Envelope Confirmed:
+         * Compute soft-margin confidence score combining SNR, attack slope, and plateau stability */
+        float snr_score     = ClampFloat((dyn_snr - 12.0f) / 25.0f, 0.0f, 1.0f);
+        float slope_score   = ClampFloat((max_attack_slope - 6.0f) / 30.0f, 0.0f, 1.0f);
+        float sustain_score = ClampFloat(sustain_ratio, 0.0f, 1.0f);
+        float stability_pen = (plateau_var > 0.85f) ? 0.15f : 0.0f;
+
+        p_inst = (0.45f * snr_score) + (0.30f * slope_score) + (0.25f * sustain_score) - stability_pen;
+        if (clf->active_sustain_cycles >= 2U)
+        {
+            p_inst += 0.18f; /* Boost confidence once sustained for >= 2 cycles (30 ms) */
+        }
+        p_inst = ClampFloat(p_inst, 0.0f, 1.0f);
+
+        if (max_window_delta >= 78.0f)
+        {
+            pred_class = TOUCH_CLASS_VALID_BARE;
+        }
+        else
+        {
+            pred_class = TOUCH_CLASS_VALID_GLOVE;
+        }
+    }
+    else
+    {
+        /* Approaching pre-touch zone below DTA gate */
+        p_inst = 0.20f;
+        pred_class = TOUCH_CLASS_IDLE;
+    }
+
+    clf->raw_confidence  = p_inst;
+    clf->predicted_class = pred_class;
+
+    /* 8. 3-Step Sliding Window Confidence Hysteresis (Pyeon et al., Sensors 2023) */
+    clf->conf_win[0] = clf->conf_win[1];
+    clf->conf_win[1] = clf->conf_win[2];
+    clf->conf_win[2] = p_inst;
+
+    float conf_avg = (clf->conf_win[0] + clf->conf_win[1] + clf->conf_win[2]) / 3.0f;
+    clf->smoothed_confidence = conf_avg;
+    clf->confidence          = conf_avg;
+
+    if (clf->is_valid_touch)
+    {
+        if ((conf_avg < TOUCH_CONF_RELEASE_THRESH) || (delta < (dta_th * TOUCH_DTA_HYSTERESIS_RATIO)))
+        {
+            clf->is_valid_touch = FALSE;
+        }
+    }
+    else
+    {
+        if ((conf_avg >= TOUCH_CONF_TRIGGER_THRESH) && (clf->active_sustain_cycles >= 2U))
+        {
+            clf->is_valid_touch = TRUE;
+        }
+    }
+
+    return clf->is_valid_touch;
+}
+
+Touch_TinyML_Class_t Touch_TinyML_GetClass(const Touch_TinyML_Classifier_t *clf)
+{
+    if (clf == NULL_PTR)
+    {
+        return TOUCH_CLASS_IDLE;
+    }
+    return clf->predicted_class;
+}
+
+boolean Touch_TinyML_IsValidTouch(const Touch_TinyML_Classifier_t *clf)
+{
+    if (clf == NULL_PTR)
+    {
+        return FALSE;
+    }
+    return clf->is_valid_touch;
 }

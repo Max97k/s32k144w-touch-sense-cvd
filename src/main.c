@@ -268,8 +268,8 @@ int main(void)
         /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean & Noise Spread Metric with Outlier Spike Detection */
         float z_meas = 0.0f;
         float spread = 0.0f;
-        boolean spike_rejected = FALSE;
-        Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread, &spike_rejected);
+        Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread);
+        boolean spike_rejected = Touch_DetectBurstSpike(burst, TOUCH_BURST_SAMPLE_COUNT);
 
         /* Milestone 2 Step 3: 1D Adaptive Scalar Kalman Filter Update */
         float x_est = Touch_Kalman_Update((Touch_Kalman_t *)&g_kalman_filter, z_meas, spread);
@@ -287,8 +287,12 @@ int main(void)
         g_baseline_touch = Touch_Baseline_IsTouched((Touch_BaselineTracker_t *)&g_baseline_tracker);
 
         /* Milestone 4: TinyML Temporal Envelope Classifier Engine */
-        Touch_ClassificationClass_t detected_class = Touch_TinyML_Update((Touch_TinyMLClassifier_t *)&g_tinyml_classifier, dynamic_delta, spread);
-        g_tinyml_touch = Touch_TinyML_IsValidTouch((const Touch_TinyMLClassifier_t *)&g_tinyml_classifier);
+        boolean tinyml_touch = Touch_TinyML_Update((Touch_TinyML_Classifier_t *)&g_tinyml_classifier,
+                                                   dynamic_delta,
+                                                   spread,
+                                                   spike_rejected);
+        Touch_ClassificationClass_t detected_class = Touch_TinyML_GetClass((const Touch_TinyML_Classifier_t *)&g_tinyml_classifier);
+        g_tinyml_touch = tinyml_touch;
 
         /* Periodic Bandgap Channel 27 and R525 Balance Reading every 10 cycles (~150 ms) */
         if ((g_cycle_counter % 10U) == 0U)

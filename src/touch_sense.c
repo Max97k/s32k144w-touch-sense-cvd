@@ -122,8 +122,8 @@ void Touch_Sense_ProcessCycle(Touch_SenseEngine_t *engine, Touch_SenseResult_t *
     /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean */
     float z_meas = 0.0f;
     float spread = 0.0f;
-    boolean spike_rejected = FALSE;
-    Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread, &spike_rejected);
+    Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread);
+    boolean spike_rejected = Touch_DetectBurstSpike(burst, TOUCH_BURST_SAMPLE_COUNT);
 
     /* Milestone 2 Step 3: 1D Adaptive Scalar Kalman Filter Update */
     float x_est = Touch_Kalman_Update(&engine->kalman, z_meas, spread);
@@ -134,8 +134,8 @@ void Touch_Sense_ProcessCycle(Touch_SenseEngine_t *engine, Touch_SenseResult_t *
     float dynamic_delta = Touch_Baseline_Update(&engine->baseline_tracker, x_est, frame_period_ms);
 
     /* Milestone 4: TinyML Temporal Envelope Classifier Engine */
-    Touch_ClassificationClass_t detected_class = Touch_TinyML_Update(&engine->tinyml, dynamic_delta, spread);
-    boolean tinyml_touch = Touch_TinyML_IsValidTouch(&engine->tinyml);
+    boolean tinyml_touch = Touch_TinyML_Update(&engine->tinyml, dynamic_delta, spread, spike_rejected);
+    Touch_ClassificationClass_t detected_class = Touch_TinyML_GetClass(&engine->tinyml);
 
     /* Periodic Background Diagnostic Refresh (every 10 cycles, ~150 ms) */
     if ((engine->cycle_count % 10U) == 0U)

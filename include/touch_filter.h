@@ -33,6 +33,9 @@ extern "C" {
 #define TOUCH_TRIM_DISCARD_EACH    (2U)
 #define TOUCH_TRIM_AVERAGE_COUNT   (5U)
 
+/* Spike outlier detection threshold (LSB difference between extremes and trimmed core) */
+#define TOUCH_SPIKE_REJECT_TH_LSB  (15)
+
 /* 16-bit Galois LFSR Polynomial: x^16 + x^14 + x^13 + x^11 + 1 */
 #define TOUCH_LFSR_POLYNOMIAL      (0xB400U)
 #define TOUCH_LFSR_DEFAULT_SEED    (0xACE1U)
@@ -104,9 +107,16 @@ void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_co
  * @param[in] count Number of burst samples (must be at least 5, typically 9)
  * @param[out] out_z_meas Pointer to output trimmed mean observation
  * @param[out] out_spread Pointer to output noise spread metric
- * @param[out] out_spike_rejected Pointer to output EFT/ESD spike rejection flag (can be NULL)
  */
-void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread, boolean *out_spike_rejected);
+void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread);
+
+/*!
+ * @brief Check whether the raw burst contained an EFT/ESD impulse outlier (> 15 LSB from trimmed core)
+ * @param[in] burst_samples Array of raw burst samples
+ * @param[in] count Number of burst samples
+ * @return TRUE if one or more extreme spikes were rejected by the alpha-trimmed filter
+ */
+boolean Touch_DetectBurstSpike(const int16_t *burst_samples, uint8_t count);
 
 /*!
  * @brief Initialize 1D Adaptive Scalar Kalman Filter

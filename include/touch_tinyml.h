@@ -1,7 +1,7 @@
 /*==================================================================================================
 *   Project              : S32K144W Touch Sensing CVD Algorithm
 *   Platform             : CORTEXM
-*   Peripheral           : Temporal Feature Envelope & TinyML Classifier Engine
+*   Peripheral           : TinyML Envelope Classifier & Water Droplet Rejection Engine (M4)
 *   Dependencies         : StandardTypes.h
 *
 *   Autosar Version      : 4.7.0
@@ -25,104 +25,124 @@ extern "C" {
 *                                      DEFINES AND CONSTANTS
 ==================================================================================================*/
 
-/* History sliding window depth for temporal geometric feature extraction */
-#define TOUCH_TINYML_WINDOW_SIZE        (10U)   /* 10 cycles * 15 ms = 150 ms history */
+/* Sliding window length (10 cycles @ 15 ms = 150 ms temporal envelope window) */
+#define TOUCH_TINYML_WINDOW_SIZE        (10U)
 
-/* Confidence sliding window depth for multi-cycle hysteresis smoothing */
-#define TOUCH_TINYML_CONF_WINDOW_SIZE   (3U)    /* 3 cycles = 45 ms latency, well within 60~90 ms */
+/* 3-Step confidence hysteresis sliding window length (Pyeon et al., Sensors 2023) */
+#define TOUCH_TINYML_CONF_WINDOW        (3U)
+#define TOUCH_TINYML_CONF_WINDOW_SIZE   TOUCH_TINYML_CONF_WINDOW
 
-/* Classification Confidence Thresholds */
-#define TOUCH_CONF_TRIGGER_THRESHOLD    (0.65f) /* Confidence required to trigger touch */
-#define TOUCH_CONF_RELEASE_THRESHOLD    (0.35f) /* Confidence required to release touch */
+/* Dynamic Threshold Adjustment (DTA) bounds (TI SLAY045B) */
+#define TOUCH_DTA_GLOVE_MIN_LSB         (34.0f)   /* Lower DTA bound in quiet environment for 2mm acrylic/glove */
+#define TOUCH_DTA_NOMINAL_LSB           (48.0f)   /* Nominal touch threshold */
+#define TOUCH_DTA_NOISY_MAX_LSB         (58.0f)   /* Elevated DTA bound under high spread / wet mist */
+#define TOUCH_DTA_HYSTERESIS_RATIO      (0.78f)   /* Release hysteresis ratio */
 
-/* Geometric feature decision thresholds */
-#define TOUCH_MIN_BARE_DELTA_LSB        (80.0f) /* Minimum delta for bare finger */
-#define TOUCH_MIN_GLOVE_DELTA_LSB       (35.0f) /* Minimum delta for glove / 2mm acrylic */
-#define TOUCH_WATER_MAX_DELTA_LSB       (45.0f) /* Water droplets typically stay below 45 LSB */
-#define TOUCH_MIN_ATTACK_SLOPE          (15.0f) /* Minimum attack slope (LSB/cycle) for genuine touch */
-#define TOUCH_MAX_PLATEAU_VAR_LSB2      (9.0f)  /* Maximum plateau variance for stable finger contact */
+/* Feature decision boundaries tuned to S32K144W SW7 empirical physics */
+#define TOUCH_FEAT_MIN_ATTACK_SLOPE     (8.5f)    /* Minimum 2-cycle attack slope (LSB) to reject slow water film */
+#define TOUCH_FEAT_MIN_DYNAMIC_SNR      (14.0f)   /* Minimum Dynamic SNR to reject wet mist / EMI noise */
+#define TOUCH_FEAT_MAX_WATER_SPREAD     (3.2f)    /* Maximum burst spread (LSB) allowed for valid touch */
+#define TOUCH_FEAT_MAX_CURVATURE_RATIO  (1.35f)   /* Maximum normalized 2nd-diff curvature to reject splash/graze */
+#define TOUCH_FEAT_MIN_SUSTAIN_RATIO    (0.68f)   /* Minimum envelope sustain ratio (delta / window_peak) */
+
+/* 3-Step confidence hysteresis thresholds [0.0 ~ 1.0] */
+#define TOUCH_CONF_TRIGGER_THRESH       (0.64f)   /* Trigger valid touch when 3-step mean confidence >= 0.64 */
+#define TOUCH_CONF_RELEASE_THRESH       (0.38f)   /* Release touch when 3-step mean confidence < 0.38 */
+
+/* Legacy threshold macros for backward compatibility */
+#define TOUCH_CONF_TRIGGER_THRESHOLD    TOUCH_CONF_TRIGGER_THRESH
+#define TOUCH_CONF_RELEASE_THRESHOLD    TOUCH_CONF_RELEASE_THRESH
+#define TOUCH_MIN_GLOVE_DELTA_LSB       TOUCH_DTA_GLOVE_MIN_LSB
+#define TOUCH_MIN_BARE_DELTA_LSB        (78.0f)
 
 /*==================================================================================================
 *                                STRUCTURES AND DATA TYPES
 ==================================================================================================*/
 
 /*!
- * @brief TinyML Classification Output Class Enum
+ * @brief Milestone 4 TinyML Classification Output Category
  */
 typedef enum {
-    TOUCH_CLASS_NONE = 0U,          /*!< Untouched / Idle quiescent state */
-    TOUCH_CLASS_BARE_FINGER,        /*!< Verified bare finger touch */
-    TOUCH_CLASS_GLOVE_OVERLAY,      /*!< Verified glove / 2mm acrylic overlay touch */
-    TOUCH_CLASS_WATER_DROPLET,      /*!< Water droplet / spray condensation disturbance (REJECTED) */
-    TOUCH_CLASS_EDGE_HOVER          /*!< Transient edge hover / grazing swipe (REJECTED) */
-} Touch_ClassificationClass_t;
+    TOUCH_CLASS_IDLE = 0U,          /*!< Untouched idle state */
+    TOUCH_CLASS_VALID_BARE,         /*!< Valid bare finger press (high amplitude, clean SNR) */
+    TOUCH_CLASS_VALID_GLOVE,        /*!< Valid thin glove / 2mm acrylic press (moderate amplitude, clean SNR) */
+    TOUCH_CLASS_REJECT_WATER,       /*!< Rejected water droplet drip / mist spray anomaly */
+    TOUCH_CLASS_REJECT_SWIPE        /*!< Rejected fast edge graze / single-cycle transient */
+} Touch_TinyML_Class_t;
+
+/* Backward compatibility enum aliases */
+typedef Touch_TinyML_Class_t Touch_ClassificationClass_t;
+#define TOUCH_CLASS_NONE          TOUCH_CLASS_IDLE
+#define TOUCH_CLASS_BARE_FINGER   TOUCH_CLASS_VALID_BARE
+#define TOUCH_CLASS_GLOVE_OVERLAY TOUCH_CLASS_VALID_GLOVE
+#define TOUCH_CLASS_WATER_DROPLET TOUCH_CLASS_REJECT_WATER
+#define TOUCH_CLASS_EDGE_HOVER    TOUCH_CLASS_REJECT_SWIPE
 
 /*!
- * @brief Extracted Temporal Envelope Features
+ * @brief 4 Time-Domain Envelope Features Extracted Over the Sliding Window
  */
 typedef struct {
-    float attack_slope;             /*!< Rising edge attack slope (LSB / cycle) */
-    float dynamic_snr_db;           /*!< Dynamic signal-to-noise ratio (dB) */
-    float plateau_variance;         /*!< Variance during held contact plateau (LSB^2) */
-    float release_symmetry;         /*!< Symmetry ratio of release slope to attack slope */
-    float peak_delta;               /*!< Maximum delta in current window (LSB) */
-    uint8_t contact_duration;       /*!< Consecutive cycles above approach threshold */
-} Touch_EnvelopeFeatures_t;
+    float attack_slope;      /*!< Feature 1: Max 2-cycle rising slope in window (LSB / 2-cycles) */
+    float dynamic_snr;       /*!< Feature 2: Peak-to-local-spread dynamic SNR ratio */
+    float plateau_variance;  /*!< Feature 3: Normalized 2nd-difference envelope curvature variance */
+    float release_symmetry;  /*!< Feature 4: Envelope sustain ratio (current delta / window max) */
+    float dta_threshold;     /*!< Instantaneous Dynamic Threshold Adjustment (DTA) level (LSB) */
+} Touch_TinyML_Features_t;
 
 /*!
- * @brief TinyML Classifier Context Structure
+ * @brief Milestone 4 TinyML Classifier Context & Telemetry Structure
  */
 typedef struct {
-    float                       history_delta[TOUCH_TINYML_WINDOW_SIZE]; /* Circular delta buffer */
-    float                       history_spread[TOUCH_TINYML_WINDOW_SIZE];/* Circular spread buffer */
-    uint8_t                     head_idx;                                /* Circular buffer head */
-    uint8_t                     sample_count;                            /* Populated samples count */
+    float                   delta_win[TOUCH_TINYML_WINDOW_SIZE];  /*!< Sliding window of net delta (LSB) */
+    float                   spread_win[TOUCH_TINYML_WINDOW_SIZE]; /*!< Sliding window of burst spread (LSB) */
+    float                   conf_win[TOUCH_TINYML_CONF_WINDOW];   /*!< 3-step instantaneous confidence buffer */
+    uint8_t                 win_head;                             /*!< Circular buffer write index */
+    uint8_t                 sample_count;                         /*!< Number of valid samples in window */
+    uint8_t                 active_sustain_cycles;                /*!< Consecutive cycles above DTA threshold */
+    Touch_TinyML_Features_t features;                             /*!< Latest extracted 4 envelope features */
+    float                   raw_confidence;                       /*!< Instantaneous frame confidence P_k [0..1] */
+    float                   smoothed_confidence;                  /*!< 3-step moving average confidence [0..1] */
+    Touch_TinyML_Class_t    predicted_class;                      /*!< Current classified physical event */
+    boolean                 is_valid_touch;                       /*!< Final debounced touch decision output */
+    float                   confidence;                           /*!< Backward-compatibility alias for smoothed_confidence */
+} Touch_TinyML_Classifier_t;
 
-    float                       conf_window[TOUCH_TINYML_CONF_WINDOW_SIZE]; /* Probability history */
-    uint8_t                     conf_head;                                  /* Confidence head */
-
-    Touch_EnvelopeFeatures_t    features;                                /* Latest extracted features */
-    Touch_ClassificationClass_t detected_class;                          /* Latest evaluated class */
-    float                       confidence;                              /* Smoothed confidence [0.0 ~ 1.0] */
-    boolean                     is_valid_touch;                          /* Final filtered touch decision */
-    uint8_t                     miss_cnt;                                /* Consecutive frames without touch evidence (dropout hold) */
-
-    uint32_t                    total_classifications;                   /* Total evaluations count */
-    uint32_t                    water_rejections_count;                  /* Total water droplets rejected */
-    uint32_t                    hover_rejections_count;                  /* Total edge hovers rejected */
-} Touch_TinyMLClassifier_t;
+/* Backward compatibility struct alias */
+typedef Touch_TinyML_Classifier_t Touch_TinyMLClassifier_t;
 
 /*==================================================================================================
 *                                FUNCTION PROTOTYPES
 ==================================================================================================*/
 
 /*!
- * @brief Initialize the TinyML Classifier and envelope buffers
- * @param[out] classifier Pointer to classifier instance
+ * @brief Initialize the Milestone 4 TinyML Envelope Feature Extractor & Classifier
+ * @param[out] clf Pointer to classifier instance
  */
-void Touch_TinyML_Init(Touch_TinyMLClassifier_t *classifier);
+void Touch_TinyML_Init(Touch_TinyML_Classifier_t *clf);
 
 /*!
- * @brief Push a new delta and spread sample into the temporal window and update classification
- * @param[in,out] classifier Pointer to classifier instance
- * @param[in]     delta Current baseline-corrected net signal (LSB)
- * @param[in]     spread High-frequency noise spread metric from alpha-trim (LSB)
- * @return Detected classification class
+ * @brief Process one scan cycle through the 10-point feature extractor and 3-step confidence classifier
+ * @param[in,out] clf Pointer to classifier instance
+ * @param[in]     delta Current baseline-compensated net shift (x_est - baseline) in LSB
+ * @param[in]     spread Current burst spread metric from M2 Alpha-Trimmed Mean in LSB
+ * @param[in]     spike_rejected TRUE if M2 detected an EFT/ESD impulse spike in the burst
+ * @return TRUE if a valid human touch (bare finger or glove/acrylic) is confirmed, FALSE otherwise
  */
-Touch_ClassificationClass_t Touch_TinyML_Update(Touch_TinyMLClassifier_t *classifier, float delta, float spread);
+boolean Touch_TinyML_Update(Touch_TinyML_Classifier_t *clf, float delta, float spread, boolean spike_rejected);
 
 /*!
- * @brief Extract temporal envelope features from the history buffer
- * @param[in,out] classifier Pointer to classifier instance
+ * @brief Query the latest classified category (Idle, Bare Finger, Glove/Acrylic, Water Reject, Swipe Reject)
+ * @param[in] clf Pointer to classifier instance
+ * @return Current Touch_TinyML_Class_t enum value
  */
-void Touch_TinyML_ExtractFeatures(Touch_TinyMLClassifier_t *classifier);
+Touch_TinyML_Class_t Touch_TinyML_GetClass(const Touch_TinyML_Classifier_t *clf);
 
 /*!
  * @brief Query whether current state is a confirmed, debounced touch
- * @param[in] classifier Pointer to classifier instance
+ * @param[in] clf Pointer to classifier instance
  * @return TRUE if valid touch (bare finger or glove), FALSE otherwise
  */
-boolean Touch_TinyML_IsValidTouch(const Touch_TinyMLClassifier_t *classifier);
+boolean Touch_TinyML_IsValidTouch(const Touch_TinyML_Classifier_t *clf);
 
 #ifdef __cplusplus
 }
