@@ -335,13 +335,13 @@ int main(void)
             }
         }
 
-        /* 0.2 Hz Heartbeat (5.0 s period = 333 frames @ 15.0 ms frame rate: 2.5s ON, 2.5s OFF) */
-        g_heartbeat_state = ((g_cycle_counter % 333U) < 167U) ? 1U : 0U;
+        /* Heartbeat Pulse: 0.1s ON, 0.9s OFF (Period = 1.0 s = 67 frames @ 15.0 ms: 7 frames ON, 60 frames OFF) */
+        g_heartbeat_state = ((g_cycle_counter % 67U) < 7U) ? 1U : 0U;
 
         /* Hardware Status LEDs:
          * - Idle (not pressed): Red LED ON, Green LED OFF
          * - Pressed: Red LED OFF, Green LED ON
-         * - Heartbeat: Blue LED blinks at 0.2 Hz
+         * - Heartbeat: Blue LED blinks (0.1s ON, 0.9s OFF)
          */
         boolean led_red   = !g_touch_active;
         boolean led_green = g_touch_active;

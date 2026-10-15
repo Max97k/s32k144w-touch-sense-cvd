@@ -56,7 +56,7 @@ async def run_simulation(ws):
             
         x_est = baseline + delta + (0.5 if cycle % 2 == 0 else -0.5)
         raw_diff = int(x_est)
-        heartbeat = 1 if ((elapsed % 5.0) < 2.5) else 0
+        heartbeat = 1 if ((elapsed % 1.0) < 0.1) else 0
         
         batch = [
             {"name": "g_touch_active", "value": touch},
@@ -131,7 +131,7 @@ async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
                     if len(parts) >= 13 and parts[12].strip().isdigit():
                         heartbeat = int(parts[12].strip())
                     else:
-                        heartbeat = 1 if ((cycle % 333) < 167) else 0
+                        heartbeat = 1 if ((cycle % 67) < 7) else 0
 
                     batch = [
                         {"name": "g_touch_active", "value": touch},

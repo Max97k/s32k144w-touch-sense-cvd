@@ -292,10 +292,10 @@
       <div class="brand-title" id="pageSubTitle">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
     </div>
     <div class="header-actions">
-      <!-- 0.2 Hz Synchronized Hardware Heartbeat Indicator -->
-      <div class="heartbeat-pill" id="heartbeatPill" title="Blinks synchronously with Board Blue LED at 0.2 Hz">
+      <!-- 0.1s ON / 0.9s OFF Synchronized Hardware Heartbeat Indicator -->
+      <div class="heartbeat-pill" id="heartbeatPill" title="Blinks synchronously with Board Blue LED (0.1s ON, 0.9s OFF)">
         <div class="heartbeat-dot" id="heartbeatDot"></div>
-        <span id="heartbeatLabel">MCU 0.2 Hz Heartbeat</span>
+        <span id="heartbeatLabel">MCU Heartbeat (0.1s/0.9s)</span>
       </div>
 
       <!-- WebSocket Connection Pill -->
@@ -421,8 +421,8 @@
         pageTitle: "Touch Sensing Demo",
         brandTitle: "Touch Sensing Demo",
         subTitle: "XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine",
-        heartbeatActive: "MCU 0.2 Hz Pulse (HIGH)",
-        heartbeatIdle: "MCU 0.2 Hz Idle (LOW)",
+        heartbeatActive: "MCU Pulse (0.1s ON)",
+        heartbeatIdle: "MCU Wait (0.9s OFF)",
         connConnecting: "Connecting (8090)...",
         connConnected: "Connected (8090)",
         connDisconnected: "Disconnected (Reconnecting...)",
@@ -450,9 +450,9 @@
         lblExec: "MCU Execution Time:",
         lblSafety: "ASIL-B Safety Budget:",
         valSafety: "< 15,000 μs (99.8% Headroom)",
-        lblHeartbeat: "MCU Heartbeat (0.2 Hz):",
-        hbActiveText: "● PULSE ON (2.5s)",
-        hbIdleText: "○ IDLE OFF (2.5s)",
+        lblHeartbeat: "MCU Heartbeat (0.1s/0.9s):",
+        hbActiveText: "● PULSE ON (0.1s)",
+        hbIdleText: "○ IDLE OFF (0.9s)",
         lblLeds: "Hardware Board LEDs:",
         ledIdleBlueOn: "🔴 RED: ON | 🔵 BLUE: ON",
         ledIdleBlueOff: "🔴 RED: ON | ⚫ BLUE: OFF",
@@ -468,8 +468,8 @@
         pageTitle: "Touch Sensing Demo - 觸控感應即時示波器",
         brandTitle: "Touch Sensing Demo",
         subTitle: "XS32K14WEVB-Q064 車規級雙極性差動 CVD 電容觸控引擎",
-        heartbeatActive: "MCU 0.2 Hz 實體心跳 (高電位)",
-        heartbeatIdle: "MCU 0.2 Hz 實體心跳 (待機中)",
+        heartbeatActive: "MCU 實體心跳 (亮 0.1s)",
+        heartbeatIdle: "MCU 實體心跳 (滅 0.9s)",
         connConnecting: "連線中 (8090)...",
         connConnected: "已連線 (8090)",
         connDisconnected: "連線中斷 (重新連線中...)",
@@ -497,9 +497,9 @@
         lblExec: "MCU 運算耗時:",
         lblSafety: "ASIL-B 安全預算:",
         valSafety: "< 15,000 μs (99.8% 裕度)",
-        lblHeartbeat: "MCU 心跳 (0.2 Hz):",
-        hbActiveText: "● 脈衝亮 (2.5秒)",
-        hbIdleText: "○ 待機滅 (2.5秒)",
+        lblHeartbeat: "MCU 心跳 (亮0.1s 暗0.9s):",
+        hbActiveText: "● 脈衝亮 (0.1秒)",
+        hbIdleText: "○ 待機滅 (0.9秒)",
         lblLeds: "板載 LED 燈號:",
         ledIdleBlueOn: "🔴 紅燈: 亮 (待機) | 🔵 藍心跳: 亮",
         ledIdleBlueOff: "🔴 紅燈: 亮 (待機) | ⚫ 藍心跳: 滅",
@@ -778,8 +778,7 @@
         }
         const base = 185;
         const x_est = base + delta;
-        const raw = Math.round(x_est);
-        const heartbeat = (Math.floor(Date.now() / 2500) % 2 === 0) ? 1 : 0; // 0.2 Hz: 2.5s on, 2.5s off
+        const heartbeat = ((Date.now() % 1000) < 100) ? 1 : 0; // 0.1s on, 0.9s off (1.0s period)
         updateDashboard([
           { name: 'g_touch_active', value: touch },
           { name: 'dynamic_delta', value: delta },
