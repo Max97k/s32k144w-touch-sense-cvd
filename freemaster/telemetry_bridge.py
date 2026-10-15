@@ -68,7 +68,9 @@ async def run_simulation(ws):
             {"name": "confidence", "value": round(conf, 2)},
             {"name": "predicted_class", "value": cls},
             {"name": "dta_threshold", "value": 48.0},
-            {"name": "g_heartbeat_state", "value": heartbeat}
+            {"name": "g_heartbeat_state", "value": heartbeat},
+            {"name": "g_cycle_counter", "value": cycle},
+            {"name": "g_board_online", "value": 1}
         ]
         
         msg = json.dumps({
@@ -89,86 +91,169 @@ async def run_simulation(ws):
             
         await asyncio.sleep(0.015)
 
+async def ensure_variables_defined(ws):
+    """Dynamically register variables with addresses in FreeMASTER Lite server."""
+    vars_to_define = [
+        {"name": "g_heartbeat_state", "addr": 536839659, "type": "uint", "size": 1},
+        {"name": "g_cycle_counter", "addr": 536839616, "type": "uint", "size": 4},
+        {"name": "g_board_online", "addr": 536839664, "type": "uint", "size": 1}
+    ]
+    for v in vars_to_define:
+        msg = {
+            "jsonrpc": "2.0",
+            "id": 50,
+            "method": "DefineVariable",
+            "params": [v]
+        }
+        await ws.send(json.dumps(msg))
+        await ws.recv()
+
 async def run_hardware_bridge(ws, port="COM5", baudrate=115200):
-    print(f"[*] Connecting to S32K144W EVB on {port} @ {baudrate} baud...")
-    ser = None
-    try:
-        ser = serial.Serial(port, baudrate, timeout=0.05)
-        print(f"[+] Successfully opened {port}! Streaming hardware telemetry into FreeMASTER Lite...")
-    except Exception as e:
-        print(f"[!] Warning: Cannot open {port}: {e}")
-        print("[*] Falling back to Simulation Mode...")
-        await run_simulation(ws)
-        return
-
-    ser.reset_input_buffer()
-    last_print = time.time()
-    packet_count = 0
-    rpc_id = 100
+    print(f"[*] Starting Hardware Bridge on {port} @ {baudrate} baud...")
     loop = asyncio.get_event_loop()
+    rpc_id = 200
 
-    try:
-        while True:
-            # Read non-blocking line from serial
-            line_bytes = await loop.run_in_executor(None, ser.readline)
-            line = line_bytes.decode('ascii', errors='ignore').strip()
-            if not line or not line.startswith("D,"):
-                continue
+    while True:
+        ser = None
+        try:
+            ser = serial.Serial(port, baudrate, timeout=0.05)
+            ser.reset_input_buffer()
+            print(f"[+] Successfully opened {port}! Streaming hardware telemetry into FreeMASTER Lite...", flush=True)
+            # Send board online notification to FreeMASTER Lite
+            await ws.send(json.dumps({
+                "jsonrpc": "2.0",
+                "id": rpc_id,
+                "method": "WriteMultipleVariables",
+                "params": [[{"name": "g_board_online", "value": 1}]]
+            }))
+            rpc_id += 1
+            await ws.recv()
+        except Exception as e:
+            # Report board offline to FreeMASTER Lite
+            try:
+                await ws.send(json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "method": "WriteMultipleVariables",
+                    "params": [[{"name": "g_board_online", "value": 0}, {"name": "g_heartbeat_state", "value": 0}]]
+                }))
+                rpc_id += 1
+                await ws.recv()
+            except Exception:
+                pass
+            print(f"[!] Waiting for S32K144W EVB on {port} ({e}). Retrying in 1s...", flush=True)
+            await asyncio.sleep(1.0)
+            continue
 
-            parts = line.split(",")
-            # Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status>
-            if len(parts) >= 12:
+        last_print = time.time()
+        last_rx_time = time.time()
+        was_online = True
+        packet_count = 0
+
+        try:
+            while True:
+                # Read non-blocking line from serial
                 try:
-                    cycle = int(parts[1]) if parts[1].isdigit() else 0
-                    raw_diff = int(parts[4])
-                    x_est = float(parts[5])
-                    baseline = float(parts[6])
-                    dyn_delta = float(parts[7])
-                    pred_class = int(parts[8])
-                    conf = float(parts[9])
-                    touch = int(parts[10])
-                    exec_us = int(parts[11])
-                    if len(parts) >= 13 and parts[12].strip().isdigit():
-                        heartbeat = int(parts[12].strip())
-                    else:
-                        heartbeat = 1 if ((cycle % 67) < 7) else 0
+                    line_bytes = await loop.run_in_executor(None, ser.readline)
+                except Exception as e:
+                    print(f"[!] Serial read error ({e}). Board disconnected or USB unplugged.", flush=True)
+                    break
 
-                    batch = [
-                        {"name": "g_touch_active", "value": touch},
-                        {"name": "g_exec_time_us", "value": exec_us},
-                        {"name": "raw_diff", "value": raw_diff},
-                        {"name": "kalman_x_est", "value": x_est},
-                        {"name": "baseline_val", "value": baseline},
-                        {"name": "dynamic_delta", "value": dyn_delta},
-                        {"name": "confidence", "value": conf},
-                        {"name": "predicted_class", "value": pred_class},
-                        {"name": "dta_threshold", "value": 48.0},
-                        {"name": "g_heartbeat_state", "value": heartbeat}
-                    ]
+                line = line_bytes.decode('ascii', errors='ignore').strip() if line_bytes else ""
+                now = time.time()
 
-                    msg = json.dumps({
-                        "jsonrpc": "2.0",
-                        "id": rpc_id,
-                        "method": "WriteMultipleVariables",
-                        "params": [batch]
-                    })
-                    rpc_id += 1
-                    await ws.send(msg)
-                    await ws.recv() # Await ack
-                    packet_count += 1
+                # Check for silence timeout (> 400ms: EVB powered off or paused)
+                if not line or not line.startswith("D,"):
+                    if was_online and (now - last_rx_time > 0.4):
+                        was_online = False
+                        await ws.send(json.dumps({
+                            "jsonrpc": "2.0",
+                            "id": rpc_id,
+                            "method": "WriteMultipleVariables",
+                            "params": [[{"name": "g_board_online", "value": 0}, {"name": "g_heartbeat_state", "value": 0}]]
+                        }))
+                        rpc_id += 1
+                        await ws.recv()
+                        print(f"[!] Target EVB silent (>400ms without packet). Board may be powered off or reset.", flush=True)
+                    await asyncio.sleep(0.005)
+                    continue
 
-                    if time.time() - last_print >= 2.0:
-                        status = "TOUCH (GREEN)" if touch else "IDLE (RED)"
-                        hb_str = "HB:ON (BLUE)" if heartbeat else "HB:OFF"
-                        print(f"[Hardware Live] Delta={dyn_delta:6.1f} LSB | Touch={touch} ({status}) | {hb_str} | Class={pred_class} | Conf={conf:.2f} | Exec={exec_us}us ({packet_count} frames)", flush=True)
-                        last_print = time.time()
-                except (ValueError, IndexError):
+                # Valid packet arrived
+                last_rx_time = now
+                if not was_online:
+                    was_online = True
+                    print(f"[+] Target EVB packets resumed! Board is back ONLINE.", flush=True)
+
+                parts = line.split(",")
+                # Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status>
+                if len(parts) >= 12:
+                    try:
+                        cycle = int(parts[1]) if parts[1].isdigit() else 0
+                        raw_diff = int(parts[4])
+                        x_est = float(parts[5])
+                        baseline = float(parts[6])
+                        dyn_delta = float(parts[7])
+                        pred_class = int(parts[8])
+                        conf = float(parts[9])
+                        touch = int(parts[10])
+                        exec_us = int(parts[11])
+                        if len(parts) >= 13 and parts[12].strip().isdigit():
+                            heartbeat = int(parts[12].strip())
+                        else:
+                            heartbeat = 1 if ((cycle % 67) < 7) else 0
+
+                        batch = [
+                            {"name": "g_touch_active", "value": touch},
+                            {"name": "g_exec_time_us", "value": exec_us},
+                            {"name": "raw_diff", "value": raw_diff},
+                            {"name": "kalman_x_est", "value": x_est},
+                            {"name": "baseline_val", "value": baseline},
+                            {"name": "dynamic_delta", "value": dyn_delta},
+                            {"name": "confidence", "value": conf},
+                            {"name": "predicted_class", "value": pred_class},
+                            {"name": "dta_threshold", "value": 48.0},
+                            {"name": "g_heartbeat_state", "value": heartbeat},
+                            {"name": "g_cycle_counter", "value": cycle},
+                            {"name": "g_board_online", "value": 1}
+                        ]
+
+                        msg = json.dumps({
+                            "jsonrpc": "2.0",
+                            "id": rpc_id,
+                            "method": "WriteMultipleVariables",
+                            "params": [batch]
+                        })
+                        rpc_id += 1
+                        await ws.send(msg)
+                        await ws.recv() # Await ack
+                        packet_count += 1
+
+                        if now - last_print >= 2.0:
+                            status = "TOUCH (GREEN)" if touch else "IDLE (RED)"
+                            hb_str = "HB:ON (BLUE)" if heartbeat else "HB:OFF"
+                            print(f"[Hardware Live] Delta={dyn_delta:6.1f} LSB | Touch={touch} ({status}) | {hb_str} | Class={pred_class} | Conf={conf:.2f} | Exec={exec_us}us ({packet_count} frames)", flush=True)
+                            last_print = now
+                    except (ValueError, IndexError):
+                        pass
+        finally:
+            if ser and ser.is_open:
+                try:
+                    ser.close()
+                except Exception:
                     pass
-    except asyncio.CancelledError:
-        pass
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+            # Mark board offline
+            try:
+                await ws.send(json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "method": "WriteMultipleVariables",
+                    "params": [[{"name": "g_board_online", "value": 0}, {"name": "g_heartbeat_state", "value": 0}]]
+                }))
+                rpc_id += 1
+                await ws.recv()
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
 
 async def main():
     parser = argparse.ArgumentParser(description="FreeMASTER WebSocket Telemetry Bridge")
@@ -191,6 +276,9 @@ async def main():
                     "params": ["S32K144W_OpenSDA"]
                 }))
                 await ws.recv()
+                
+                # Dynamically define variables with addresses
+                await ensure_variables_defined(ws)
                 
                 if args.sim or not HAS_SERIAL:
                     await run_simulation(ws)

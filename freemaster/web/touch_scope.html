@@ -80,15 +80,23 @@
       color: var(--nxp-blue);
       padding: 6px 14px;
       border-radius: 20px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.15s ease-out;
       user-select: none;
     }
     .heartbeat-pill.active {
-      background: rgba(14, 175, 224, 0.32);
+      background: rgba(14, 175, 224, 0.45);
       border-color: #0EAFE0;
       color: #FFFFFF;
-      box-shadow: 0 0 18px rgba(14, 175, 224, 0.8);
-      transform: scale(1.03);
+      box-shadow: 0 0 22px rgba(14, 175, 224, 0.95), 0 0 40px rgba(14, 175, 224, 0.5);
+      transform: scale(1.06);
+      transition: all 0.04s ease-out;
+    }
+    .heartbeat-pill.offline {
+      background: rgba(107, 114, 128, 0.1);
+      border-color: rgba(107, 114, 128, 0.3);
+      color: #9CA3AF;
+      box-shadow: none;
+      transform: none;
     }
     .heartbeat-dot {
       width: 10px;
@@ -96,12 +104,19 @@
       border-radius: 50%;
       background: var(--nxp-blue);
       opacity: 0.35;
-      transition: all 0.2s;
+      transition: all 0.15s;
     }
     .heartbeat-pill.active .heartbeat-dot {
       opacity: 1;
       background: #FFFFFF;
-      box-shadow: 0 0 12px #0EAFE0, 0 0 20px #0EAFE0;
+      box-shadow: 0 0 12px #0EAFE0, 0 0 24px #0EAFE0;
+      transform: scale(1.4);
+      transition: all 0.04s ease-out;
+    }
+    .heartbeat-pill.offline .heartbeat-dot {
+      background: #6B7280;
+      opacity: 0.25;
+      box-shadow: none;
     }
     .conn-status {
       display: flex;
@@ -208,6 +223,11 @@
       border-color: var(--nxp-orange);
       box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
     }
+    .indicator-card.offline {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.5);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+    }
     .indicator-text {
       font-size: 22px;
       font-weight: 800;
@@ -281,6 +301,7 @@
     .badge-bare { background: rgba(16, 185, 129, 0.25); color: var(--nxp-green); border: 1px solid var(--nxp-green); }
     .badge-water { background: rgba(245, 158, 11, 0.2); color: var(--nxp-orange); border: 1px solid var(--nxp-orange); }
     .badge-idle { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
+    .badge-offline { background: rgba(239, 68, 68, 0.25); color: #EF4444; border: 1px solid #EF4444; }
     .badge-swipe { background: rgba(139, 92, 246, 0.2); color: var(--nxp-purple); border: 1px solid var(--nxp-purple); }
   </style>
 </head>
@@ -416,13 +437,20 @@
     let rpcId = 1;
     let currentLang = localStorage.getItem('touch_demo_lang') || 'zh';
 
+    let lastCycleCounter = -1;
+    let lastPacketTimestamp = 0;
+    let isBoardOnline = false;
+
     const i18n = {
       en: {
         pageTitle: "Touch Sensing Demo",
         brandTitle: "Touch Sensing Demo",
         subTitle: "XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine",
+        boardConnected: "● Board Online (COM5 @ 115200)",
+        boardDisconnected: "⚠️ Board Disconnected / Offline (COM5)",
         heartbeatActive: "MCU Pulse (0.1s ON)",
         heartbeatIdle: "MCU Wait (0.9s OFF)",
+        heartbeatOffline: "MCU Heartbeat: Offline",
         connConnecting: "Connecting (8090)...",
         connConnected: "Connected (8090)",
         connDisconnected: "Disconnected (Reconnecting...)",
@@ -437,9 +465,11 @@
         statusIdle: "IDLE / UNTOUCHED (RED LED)",
         statusTouched: "TOUCH CONFIRMED (GREEN LED)",
         statusWater: "WATER DROPLET REJECTED",
+        statusBoardOffline: "⚠️ BOARD OFFLINE / DISCONNECTED (WAITING...)",
         classIdle: "CLASS: IDLE",
         classBare: "CLASS: BARE FINGER",
         classWater: "CLASS: WATER DROPLET",
+        classOffline: "STATUS: OFFLINE",
         metricsTitle: "Algorithm Metrics",
         lblDelta: "Net Shift Δdyn:",
         lblKalman: "Kalman Filter xest:",
@@ -453,11 +483,13 @@
         lblHeartbeat: "MCU Heartbeat (0.1s/0.9s):",
         hbActiveText: "● PULSE ON (0.1s)",
         hbIdleText: "○ IDLE OFF (0.9s)",
+        hbOfflineText: "✖ OFFLINE (NO LINK)",
         lblLeds: "Hardware Board LEDs:",
         ledIdleBlueOn: "🔴 RED: ON | 🔵 BLUE: ON",
         ledIdleBlueOff: "🔴 RED: ON | ⚫ BLUE: OFF",
         ledPressBlueOn: "🟢 GREEN: ON | 🔵 BLUE: ON",
         ledPressBlueOff: "🟢 GREEN: ON | ⚫ BLUE: OFF",
+        ledBoardOffline: "⚫ BOARD POWER OFF / DISCONNECTED (ALL LEDS OFF)",
         langBtnText: "English",
         chartTraceDelta: "Net Dynamic Shift (Delta)",
         chartTraceRaw: "Raw CVD Diff (Delta D)",
@@ -468,8 +500,11 @@
         pageTitle: "Touch Sensing Demo - 觸控感應即時示波器",
         brandTitle: "Touch Sensing Demo",
         subTitle: "XS32K14WEVB-Q064 車規級雙極性差動 CVD 電容觸控引擎",
+        boardConnected: "● 開發板已連線 (COM5 @ 115200)",
+        boardDisconnected: "⚠️ 開發板已斷線 / 斷電 (COM5)",
         heartbeatActive: "MCU 實體心跳 (亮 0.1s)",
         heartbeatIdle: "MCU 實體心跳 (滅 0.9s)",
+        heartbeatOffline: "MCU 實體心跳: 離線",
         connConnecting: "連線中 (8090)...",
         connConnected: "已連線 (8090)",
         connDisconnected: "連線中斷 (重新連線中...)",
@@ -484,9 +519,11 @@
         statusIdle: "待機靜止無按壓 (紅燈亮)",
         statusTouched: "有效觸控確認 (綠燈亮)",
         statusWater: "水滴抗擾拒斥 (無誤觸)",
+        statusBoardOffline: "⚠️ 開發板已斷電或斷線 (等待重新連線...)",
         classIdle: "類別: 待機",
         classBare: "類別: 裸手按壓",
         classWater: "類別: 水滴干擾",
+        classOffline: "狀態: 離線中",
         metricsTitle: "演算法核心指標",
         lblDelta: "淨動態位移 Δdyn:",
         lblKalman: "卡爾曼濾波估計 xest:",
@@ -500,11 +537,13 @@
         lblHeartbeat: "MCU 心跳 (亮0.1s 暗0.9s):",
         hbActiveText: "● 脈衝亮 (0.1秒)",
         hbIdleText: "○ 待機滅 (0.9秒)",
+        hbOfflineText: "✖ 離線 (無通訊)",
         lblLeds: "板載 LED 燈號:",
         ledIdleBlueOn: "🔴 紅燈: 亮 (待機) | 🔵 藍心跳: 亮",
         ledIdleBlueOff: "🔴 紅燈: 亮 (待機) | ⚫ 藍心跳: 滅",
         ledPressBlueOn: "🟢 綠燈: 亮 (按壓) | 🔵 藍心跳: 亮",
         ledPressBlueOff: "🟢 綠燈: 亮 (按壓) | ⚫ 藍心跳: 滅",
+        ledBoardOffline: "⚫ 開發板未供電 / 斷線 (LED 全熄)",
         langBtnText: "繁體中文",
         chartTraceDelta: "淨動態位移 (Δdyn)",
         chartTraceRaw: "原始 CVD 差動值 (ΔD)",
@@ -584,6 +623,36 @@
       }
     });
 
+    function renderOfflineState() {
+      const t = i18n[currentLang];
+      const connPill = document.getElementById('connPill');
+      const connLabel = document.getElementById('connLabel');
+      const hbPill = document.getElementById('heartbeatPill');
+      const hbLabel = document.getElementById('heartbeatLabel');
+      const valHeartbeat = document.getElementById('valHeartbeat');
+      const touchCard = document.getElementById('touchCard');
+      const touchText = document.getElementById('touchStatusText');
+      const classBadge = document.getElementById('classBadge');
+      const valLeds = document.getElementById('valLeds');
+
+      connPill.className = 'conn-status disconnected';
+      connLabel.innerText = t.boardDisconnected;
+
+      hbPill.className = 'heartbeat-pill offline';
+      hbLabel.innerText = t.heartbeatOffline;
+      valHeartbeat.innerText = t.hbOfflineText;
+      valHeartbeat.style.color = '#9CA3AF';
+
+      touchCard.className = 'card indicator-card offline';
+      touchText.innerText = t.statusBoardOffline;
+      touchText.style.color = 'var(--nxp-orange)';
+      classBadge.className = 'badge badge-offline';
+      classBadge.innerText = t.classOffline;
+
+      valLeds.innerText = t.ledBoardOffline;
+      valLeds.style.color = 'var(--text-muted)';
+    }
+
     function applyLanguage(lang) {
       currentLang = lang;
       localStorage.setItem('touch_demo_lang', lang);
@@ -620,6 +689,10 @@
       scopeChart.data.datasets[2].label = t.chartTraceKalman;
       scopeChart.data.datasets[3].label = t.chartTraceBaseline;
       scopeChart.update();
+
+      if (!isBoardOnline && !isSimMode) {
+        renderOfflineState();
+      }
     }
 
     function toggleLanguage() {
@@ -652,7 +725,8 @@
       };
 
       ws.onclose = () => {
-        document.getElementById('connPill').className = 'conn-status disconnected';
+        isBoardOnline = false;
+        renderOfflineState();
         document.getElementById('connLabel').innerText = i18n[currentLang].connDisconnected;
         setTimeout(connectWS, 1500);
       };
@@ -666,18 +740,48 @@
       if (isPaused) return;
 
       let touch = 0, delta = 0, x_est = 185, base = 185, raw = 185, conf = 0, cls = 0, exec_us = 32, heartbeat = 0;
+      let cycle = -1, board_online_flag = -1;
 
       for (let v of vars) {
-        if (v.name === 'g_touch_active') touch = Number(v.value);
-        if (v.name === 'dynamic_delta') delta = Number(v.value);
-        if (v.name === 'kalman_x_est') x_est = Number(v.value);
-        if (v.name === 'baseline_val') base = Number(v.value);
-        if (v.name === 'raw_diff') raw = Number(v.value);
-        if (v.name === 'confidence') conf = Number(v.value);
-        if (v.name === 'predicted_class') cls = Number(v.value);
-        if (v.name === 'g_exec_time_us') exec_us = Number(v.value);
-        if (v.name === 'g_heartbeat_state') heartbeat = Number(v.value);
+        if (v && v.status !== false && v.value !== undefined) {
+          if (v.name === 'g_touch_active') touch = Number(v.value);
+          if (v.name === 'dynamic_delta') delta = Number(v.value);
+          if (v.name === 'kalman_x_est') x_est = Number(v.value);
+          if (v.name === 'baseline_val') base = Number(v.value);
+          if (v.name === 'raw_diff') raw = Number(v.value);
+          if (v.name === 'confidence') conf = Number(v.value);
+          if (v.name === 'predicted_class') cls = Number(v.value);
+          if (v.name === 'g_exec_time_us') exec_us = Number(v.value);
+          if (v.name === 'g_heartbeat_state') heartbeat = Number(v.value);
+          if (v.name === 'g_cycle_counter') cycle = Number(v.value);
+          if (v.name === 'g_board_online') board_online_flag = Number(v.value);
+        }
       }
+
+      const now = Date.now();
+      if (cycle !== -1 && cycle !== lastCycleCounter) {
+        lastCycleCounter = cycle;
+        lastPacketTimestamp = now;
+      }
+
+      if (isSimMode) {
+        isBoardOnline = true;
+      } else {
+        const isFresh = (lastPacketTimestamp > 0) && (now - lastPacketTimestamp < 500);
+        isBoardOnline = isFresh && (board_online_flag !== 0);
+      }
+
+      if (!isBoardOnline) {
+        renderOfflineState();
+        return;
+      }
+
+      // Online! Update Status Pills & Scope
+      const t = i18n[currentLang];
+      const connPill = document.getElementById('connPill');
+      const connLabel = document.getElementById('connLabel');
+      connPill.className = 'conn-status';
+      connLabel.innerText = isSimMode ? t.connConnected : t.boardConnected;
 
       // Update Chart Series
       scopeChart.data.datasets[0].data.shift();
@@ -703,8 +807,7 @@
       document.getElementById('confFill').style.width = Math.round(conf * 100) + '%';
       document.getElementById('valExec').innerText = exec_us + ' \u03BCs';
 
-      // 0.2 Hz Heartbeat Indicator Synchronization
-      const t = i18n[currentLang];
+      // Synchronized Blue Heartbeat Flash
       const hbPill = document.getElementById('heartbeatPill');
       const hbLabel = document.getElementById('heartbeatLabel');
       const valHeartbeat = document.getElementById('valHeartbeat');
@@ -757,7 +860,7 @@
       }
     }
 
-    // Polling Loop: Query FreeMASTER variables over WebSocket at 40 Hz (25 ms)
+    // Fast polling loop: Query FreeMASTER variables over WebSocket at 40 Hz (25 ms)
     setInterval(() => {
       if (isPaused) return;
 
@@ -784,21 +887,32 @@
           { name: 'dynamic_delta', value: delta },
           { name: 'kalman_x_est', value: x_est },
           { name: 'baseline_val', value: base },
-          { name: 'raw_diff', value: raw },
+          { name: 'raw_diff', value: Math.round(x_est) },
           { name: 'confidence', value: conf },
           { name: 'predicted_class', value: cls },
           { name: 'g_exec_time_us', value: 32 },
-          { name: 'g_heartbeat_state', value: heartbeat }
+          { name: 'g_heartbeat_state', value: heartbeat },
+          { name: 'g_cycle_counter', value: simCycle },
+          { name: 'g_board_online', value: 1 }
         ]);
       } else if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
           id: rpcId++,
           method: 'ReadMultipleVariables',
-          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us', 'g_heartbeat_state']]
+          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us', 'g_heartbeat_state', 'g_cycle_counter', 'g_board_online']]
         }));
       }
     }, 25);
+
+    // Watchdog Timer: Runs every 100 ms to detect target power off or disconnect immediately
+    setInterval(() => {
+      if (isPaused || isSimMode) return;
+      if (isBoardOnline && (Date.now() - lastPacketTimestamp >= 500)) {
+        isBoardOnline = false;
+        renderOfflineState();
+      }
+    }, 100);
 
     function togglePause() {
       isPaused = !isPaused;
@@ -810,6 +924,14 @@
       isSimMode = !isSimMode;
       const t = i18n[currentLang];
       document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
+      if (isSimMode) {
+        lastPacketTimestamp = Date.now();
+        isBoardOnline = true;
+      } else {
+        lastPacketTimestamp = 0;
+        isBoardOnline = false;
+        renderOfflineState();
+      }
     }
 
     function resetZoom() {

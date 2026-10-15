@@ -68,6 +68,19 @@
     },
     {
       "name": "g_heartbeat_state",
+      "addr": 536839659,
+      "type": "uint",
+      "size": 1
+    },
+    {
+      "name": "g_cycle_counter",
+      "addr": 536839616,
+      "type": "uint",
+      "size": 4
+    },
+    {
+      "name": "g_board_online",
+      "addr": 536839664,
       "type": "uint",
       "size": 1
     }
