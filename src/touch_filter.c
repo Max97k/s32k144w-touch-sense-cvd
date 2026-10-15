@@ -51,6 +51,8 @@ uint16_t Touch_LFSR_Next(uint16_t *lfsr)
     return *lfsr;
 }
 
+volatile Touch_RawSample_t g_last_burst_raw_sample = {0U, 0U, 0, 0U, 0};
+
 void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_count, uint16_t *lfsr_state)
 {
     if ((burst_samples == NULL_PTR) || (count == 0U))
@@ -75,6 +77,11 @@ void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_co
         /* 3. Acquire 4-phase bipolar differential CVD sample */
         Touch_RawSample_t raw_s = Touch_AcquireSingleDiffCVD(nop_count);
         burst_samples[i] = raw_s.delta_D;
+
+        if (i == (count / 2U))
+        {
+            g_last_burst_raw_sample = raw_s;
+        }
     }
 }
 

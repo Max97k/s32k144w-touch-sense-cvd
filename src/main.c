@@ -17,6 +17,7 @@
 #include "touch_filter.h"
 #include "touch_baseline.h"
 #include "touch_tinyml.h"
+#include "touch_diag.h"
 #include "uart_telemetry.h"
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
@@ -26,6 +27,7 @@ volatile Touch_Kalman_t             g_kalman_filter;
 volatile Touch_M2_FilteredSample_t  g_m2_sample;
 volatile Touch_BaselineTracker_t    g_baseline_tracker;
 volatile Touch_TinyMLClassifier_t   g_tinyml_classifier;
+volatile Touch_Diagnostics_t        g_touch_diagnostics;
 volatile uint16_t                   g_lfsr_state = TOUCH_LFSR_DEFAULT_SEED;
 volatile uint32_t                   g_cycle_counter = 0U;
 volatile boolean                    g_baseline_touch = FALSE;
@@ -51,7 +53,7 @@ int main(void)
 
     Telemetry_SendString("\r\n=======================================================\r\n");
     Telemetry_SendString("   S32K144W Automotive Touch Sensing CVD Engine\r\n");
-    Telemetry_SendString("   Milestones 1~4: CVD + Kalman + Baseline + TinyML\r\n");
+    Telemetry_SendString("   Milestones 1~5: CVD + Kalman + Baseline + TinyML + Safety\r\n");
     Telemetry_SendString("=======================================================\r\n");
 
     /* 3. Initialize Touch GPIO Pins & Status LEDs */
@@ -217,7 +219,17 @@ int main(void)
     Telemetry_SendString("    - Target Classes:        Bare Finger, Glove/Acrylic, Water Droplet, Edge Hover\r\n");
     Telemetry_SendString("    - Pass Criteria:         TPR >= 98%, FPR = 0%, Latency <= 60~90 ms\r\n");
 
-    /* 11. Initialize ARM Cortex-M SysTick for Hardware-Locked 15.000 ms Frame Synchronizer */
+    /* 11. Initialize On-line Hardware Defect Diagnostics Engine (Milestone 5) */
+    Touch_Diag_Init((Touch_Diagnostics_t *)&g_touch_diagnostics);
+
+    Telemetry_SendString("[*] Milestone 5 Hardware Defect Diagnostics Initialized:\r\n");
+    Telemetry_SendString("    - Physical Voltage Limits: 300 ~ 3800 LSB (Short to GND/VDD)\r\n");
+    Telemetry_SendString("    - R525 Integrity Window:   <= 80 LSB Balance Delta\r\n");
+    Telemetry_SendString("    - VREFH Supply Window:     4750 ~ 5250 mV (+/- 5%)\r\n");
+    Telemetry_SendString("    - Reaction Time:           <= 3 cycles (<= 45 ms, Target <= 60 ms)\r\n");
+    Telemetry_SendString("    - Auto-Recovery Time:      8 cycles (120 ms, Target <= 200 ms)\r\n");
+
+    /* 12. Initialize ARM Cortex-M SysTick for Hardware-Locked 15.000 ms Frame Synchronizer */
     S32_SysTick->CSRr = 0U; /* Disable during config */
     S32_SysTick->RVR  = 719999U; /* 48 MHz * 0.015 s - 1 = 719999 ticks (15.000 ms) */
     S32_SysTick->CVR  = 0U; /* Clear current counter */
@@ -225,8 +237,8 @@ int main(void)
 
     Telemetry_SendString("[*] SysTick Hardware 15.000 ms Zero-Jitter Frame Synchronizer Activated.\r\n");
 
-    /* 12. Live Real-Time Continuous Acquisition, Filtering, Baseline & TinyML Loop */
-    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & TinyML Loop (Touch SW7 to test)...\r\n");
+    /* 13. Live Real-Time Continuous Acquisition, Filtering, Baseline, TinyML & Diag Loop */
+    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & ASIL-B Safety Diag Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
 
     while (1)
@@ -237,10 +249,8 @@ int main(void)
         int16_t burst[TOUCH_BURST_SAMPLE_COUNT];
         Touch_AcquireBurstMFP(burst, TOUCH_BURST_SAMPLE_COUNT, g_m1_report.optimal_nop, (uint16_t *)&g_lfsr_state);
 
-        /* Single representative raw sample taken directly from burst midpoint to eliminate redundant ADC read */
-        g_current_sample.sample_A = 0U;
-        g_current_sample.sample_B = 0U;
-        g_current_sample.delta_D  = burst[4];
+        /* Update representative raw sample directly from burst midpoint (contains real sample_A, sample_B, delta_D) */
+        g_current_sample = g_last_burst_raw_sample;
 
         /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean & Noise Spread Metric with Outlier Spike Detection */
         float z_meas = 0.0f;
@@ -267,30 +277,58 @@ int main(void)
         Touch_ClassificationClass_t detected_class = Touch_TinyML_Update((Touch_TinyMLClassifier_t *)&g_tinyml_classifier, dynamic_delta, spread);
         g_tinyml_touch = Touch_TinyML_IsValidTouch((const Touch_TinyMLClassifier_t *)&g_tinyml_classifier);
 
-        /* Multi-dimensional Touch Decision Fusion:
-         * Valid touch requires TinyML envelope confirmation (bare finger or glove)
-         * AND sufficient dynamic signal above minimum glove detection threshold (35 LSB).
-         * Rejects water droplets (low SNR/atypical envelope) and edge hovers (too transient). */
-        g_touch_active = (g_tinyml_touch && (dynamic_delta >= TOUCH_MIN_GLOVE_DELTA_LSB));
-
-        int16_t net_shift_raw = g_current_sample.delta_D - g_m1_report.baseline_delta;
-
-        if (g_touch_active)
+        /* Periodic Bandgap Channel 27 and R525 Balance Reading every 10 cycles (~150 ms) */
+        if ((g_cycle_counter % 10U) == 0U)
         {
-            /* Active Verified Touch: Blue LED ON, Green LED OFF */
-            Touch_SetStatusLeds(FALSE, FALSE, TRUE);
+            uint16_t bg_raw = 0U;
+            g_m1_report.vrefh_mv = Touch_ReadBandgap_mV(&bg_raw);
+            g_m1_report.bandgap_raw = bg_raw;
+            g_touch_diagnostics.last_balance_diff = Touch_MeasureBalanceDiff(g_m1_report.optimal_nop);
+        }
 
-            if (dynamic_delta >= (float)M1_TOUCH_DELTA_MIN_LSB)
-            {
-                g_m1_report.criteria_3_gain_pass = TRUE;
-                g_m1_report.touch_delta_shift = (int16_t)dynamic_delta;
-            }
+        /* Milestone 5: Execute On-line Hardware Defect Diagnostics Cycle */
+        uint32_t active_faults = Touch_Diag_RunCycle((Touch_Diagnostics_t *)&g_touch_diagnostics,
+                                                     g_current_sample.sample_A,
+                                                     g_current_sample.sample_B,
+                                                     g_touch_diagnostics.last_balance_diff,
+                                                     g_m1_report.vrefh_mv);
+
+        /* Normal Touch Candidate: TinyML confirmation AND sufficient dynamic signal */
+        boolean touch_candidate = (g_tinyml_touch && (dynamic_delta >= TOUCH_MIN_GLOVE_DELTA_LSB));
+
+        /* Milestone 5: ISO 26262 ASIL-B Safety Interlock & Fail-Safe Clamp */
+        if (active_faults != TOUCH_FAULT_NONE)
+        {
+            /* Hard Safety Interlock: When any hardware defect/short is active,
+             * unconditionally force touch to FALSE to eliminate false triggers */
+            g_touch_active = FALSE;
+
+            /* Turn ON Red LED to indicate safety fault state */
+            Touch_SetStatusLeds(TRUE, FALSE, FALSE);
         }
         else
         {
-            /* Released / Idle / Approaching / Water Rejected: Green LED ON, Blue LED OFF */
-            Touch_SetStatusLeds(FALSE, TRUE, FALSE);
+            g_touch_active = touch_candidate;
+
+            if (g_touch_active)
+            {
+                /* Active Verified Touch: Blue LED ON, Green/Red OFF */
+                Touch_SetStatusLeds(FALSE, FALSE, TRUE);
+
+                if (dynamic_delta >= (float)M1_TOUCH_DELTA_MIN_LSB)
+                {
+                    g_m1_report.criteria_3_gain_pass = TRUE;
+                    g_m1_report.touch_delta_shift = (int16_t)dynamic_delta;
+                }
+            }
+            else
+            {
+                /* Released / Healthy / Quiescent: Green LED ON, Blue/Red OFF */
+                Touch_SetStatusLeds(FALSE, TRUE, FALSE);
+            }
         }
+
+        int16_t net_shift_raw = g_current_sample.delta_D - g_m1_report.baseline_delta;
 
         /* Periodic telemetry output interleaved every 10 cycles (~150 ms)
          * Transmissions are phased to keep frame duration < 5.6 ms, preventing loop stretching */
@@ -323,16 +361,25 @@ int main(void)
             }
             else
             {
-                /* Stream 3: Milestone 4 TinyML Envelope & Classification Diagnostics */
-                Telemetry_SendString("M4,Class:");
+                /* Stream 3: Milestone 4 & 5 Diagnostics Telemetry */
+                Telemetry_SendString("M45,Cls:");
                 Telemetry_SendUInt((uint32_t)detected_class);
-                Telemetry_SendString(",Conf:");
+                Telemetry_SendString(",Cnf:");
                 Telemetry_SendFloat(g_tinyml_classifier.confidence, 2U);
-                Telemetry_SendString(",Slope:");
-                Telemetry_SendFloat(g_tinyml_classifier.features.attack_slope, 1U);
-                Telemetry_SendString(",Var:");
-                Telemetry_SendFloat(g_tinyml_classifier.features.plateau_variance, 1U);
-                Telemetry_SendString(g_tinyml_touch ? " [VERIFIED]\r\n" : " [REJECT]\r\n");
+                Telemetry_SendString(",A:");
+                Telemetry_SendUInt(g_current_sample.sample_A);
+                Telemetry_SendString(",B:");
+                Telemetry_SendUInt(g_current_sample.sample_B);
+                if (active_faults == TOUCH_FAULT_NONE)
+                {
+                    Telemetry_SendString(",Diag:OK\r\n");
+                }
+                else
+                {
+                    Telemetry_SendString(",Fault:0x");
+                    Telemetry_SendUInt(active_faults);
+                    Telemetry_SendString(" [FAILSAFE]\r\n");
+                }
             }
         }
 

@@ -76,6 +76,8 @@ typedef struct {
     boolean  spike_rejected; /*!< Set TRUE if EFT/ESD pulse was clipped by alpha-trim */
 } Touch_M2_FilteredSample_t;
 
+extern volatile Touch_RawSample_t g_last_burst_raw_sample;
+
 /*==================================================================================================
 *                                FUNCTION PROTOTYPES
 ==================================================================================================*/
