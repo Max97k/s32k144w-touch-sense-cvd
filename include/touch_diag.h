@@ -29,8 +29,10 @@ extern "C" {
 #define TOUCH_DIAG_SAMPLE_MIN_LSB       (300U)    /*!< Lower limit: readings < 300 LSB indicate short to GND */
 #define TOUCH_DIAG_SAMPLE_MAX_LSB       (3800U)   /*!< Upper limit: readings > 3800 LSB indicate short to VDD */
 
-/* Bridging resistor R525 (10 kOhm) integrity threshold */
-#define TOUCH_DIAG_BALANCE_DIFF_MAX_LSB (80)     /*!< Max balance difference across R525 before open-circuit fault */
+/* Bridging resistor R525 (10 kOhm) integrity threshold:
+ * Healthy charge transfer across R525 yields balance difference ~83 LSB (< 120 LSB).
+ * Resistor degradation or open-circuit prevents charge equalization (|diff| > 250 LSB up to 4095 LSB). */
+#define TOUCH_DIAG_BALANCE_DIFF_MAX_LSB (250)
 
 /* Reference voltage VREFH drift limits (Nominal 5000 mV, +/- 5% tolerance) */
 #define TOUCH_DIAG_VREFH_NOMINAL_MV     (5000U)   /*!< Target EVB supply voltage */

@@ -44,10 +44,8 @@ def main():
         f.write(f"""set pagination off
 set confirm off
 target remote localhost:7224
-monitor reset
 load {elf_posix}
-tb main
-continue
+monitor reset
 detach
 quit
 """)

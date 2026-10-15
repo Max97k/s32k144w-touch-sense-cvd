@@ -70,13 +70,13 @@ Implemented in strict adherence to **NXP Real Time Drivers (RTD 3.0.0)**, **S32 
   - [x] Multi-class recognition: Bare Finger ($\text{TPR} = 100\%$), Glove/Acrylic ($\text{TPR} = 100\%$), Water Spray ($\text{FPR} = 0\%$), Edge Hover ($\text{FPR} = 0\%$).
   - [x] Detection latency: $45.0\text{ ms}$ (bare) / $53.1\text{ ms}$ (glove).
   - [x] Hardware-locked exact $15.000\text{ ms}$ SysTick frame synchronizer.
-- [ ] **Milestone 5: Online Dual-Channel Hardware Defect Diagnostics & ASIL-B Safety Engine** (IN PROGRESS)
+- [x] **Milestone 5: Online Dual-Channel Hardware Defect Diagnostics & ASIL-B Safety Engine** (`v1.0.5-m5`)
   - [x] Dual-window electrode Short-to-GND ($< 300\text{ LSB}$) and Short-to-VDD ($> 3800\text{ LSB}$) detection.
-  - [x] Bridging resistor $R_{525}$ ($10\text{ k}\Omega$) open-circuit / degradation monitoring.
-  - [x] ADC reference voltage $V_{\text{REFH}}$ supply drift ($\pm 5\%$) monitoring via Bandgap Ch27.
-  - [x] ASIL-B fail-safe clamp (unconditional touch suppression during hardware faults).
-  - [x] Debounce qualification ($\le 30\text{ ms}$) and auto-recovery self-healing ($\le 120\text{ ms}$).
-  - [ ] Hardware baseline deviation threshold tuning and final on-target sign-off.
+  - [x] Bridging resistor $R_{525}$ ($10\text{ k}\Omega$) open-circuit / degradation monitoring ($|v_{14} - v_{15}| > 250\text{ LSB}$).
+  - [x] ADC reference voltage $V_{\text{REFH}}$ supply drift ($\pm 5\%$) monitoring via Bandgap Ch27 ($4750 \sim 5250\text{ mV}$).
+  - [x] ASIL-B fail-safe clamp (unconditional touch suppression during hardware faults, Red LED indicator).
+  - [x] Debounce qualification in 2 cycles ($\le 30\text{ ms}$) and auto-recovery self-healing in 8 cycles ($\le 120\text{ ms}$).
+  - [x] Live hardware telemetry verification on S32K144W EVB with zero false failsafes (`Diag:OK`).
 - [ ] **Milestone 6: VLPS Low-Power Sleep/Wakeup Integration & 12h Burn-in Test** (PLANNED)
   - [ ] LPIT periodic wakeup from PMC VLPS mode ($\le 60\text{ }\mu\text{s}$ active execution).
   - [ ] Deep-sleep power target $45 \sim 70\text{ }\mu\text{A}$.

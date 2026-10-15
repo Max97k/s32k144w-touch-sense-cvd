@@ -221,6 +221,7 @@ int main(void)
 
     /* 11. Initialize On-line Hardware Defect Diagnostics Engine (Milestone 5) */
     Touch_Diag_Init((Touch_Diagnostics_t *)&g_touch_diagnostics);
+    g_touch_diagnostics.last_balance_diff = g_m1_report.min_balance_diff;
 
     Telemetry_SendString("[*] Milestone 5 Hardware Defect Diagnostics Initialized:\r\n");
     Telemetry_SendString("    - Physical Voltage Limits: 300 ~ 3800 LSB (Short to GND/VDD)\r\n");
@@ -370,6 +371,10 @@ int main(void)
                 Telemetry_SendUInt(g_current_sample.sample_A);
                 Telemetry_SendString(",B:");
                 Telemetry_SendUInt(g_current_sample.sample_B);
+                Telemetry_SendString(",Bal:");
+                Telemetry_SendInt(g_touch_diagnostics.last_balance_diff);
+                Telemetry_SendString(",Vref:");
+                Telemetry_SendUInt(g_m1_report.vrefh_mv);
                 if (active_faults == TOUCH_FAULT_NONE)
                 {
                     Telemetry_SendString(",Diag:OK\r\n");
@@ -377,7 +382,7 @@ int main(void)
                 else
                 {
                     Telemetry_SendString(",Fault:0x");
-                    Telemetry_SendUInt(active_faults);
+                    Telemetry_SendHex(active_faults, 4U);
                     Telemetry_SendString(" [FAILSAFE]\r\n");
                 }
             }

@@ -59,6 +59,11 @@ void Telemetry_SendUInt(uint32_t value);
  */
 void Telemetry_SendFloat(float value, uint8_t decimals);
 
+/*!
+ * @brief Transmit a hexadecimal formatted unsigned integer over LPUART1.
+ */
+void Telemetry_SendHex(uint32_t value, uint8_t digits);
+
 #ifdef __cplusplus
 }
 #endif

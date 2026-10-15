@@ -48,7 +48,7 @@ class PythonTouchDiagnostics:
     """Exact software replica of Touch_Diag_RunCycle in src/touch_diag.c"""
     SAMPLE_MIN_LSB = 300
     SAMPLE_MAX_LSB = 3800
-    BALANCE_DIFF_MAX = 80
+    BALANCE_DIFF_MAX = 250
     VREFH_MIN_MV = 4750
     VREFH_MAX_MV = 5250
     FAULT_SET_CYCLES = 2

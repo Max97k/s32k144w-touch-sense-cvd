@@ -167,3 +167,17 @@ void Telemetry_SendFloat(float value, uint8_t decimals)
         }
     }
 }
+
+void Telemetry_SendHex(uint32_t value, uint8_t digits)
+{
+    static const char hex_chars[] = "0123456789ABCDEF";
+    if ((digits == 0U) || (digits > 8U))
+    {
+        digits = 8U;
+    }
+    for (int8_t i = (int8_t)(digits - 1U); i >= 0; i--)
+    {
+        uint8_t nibble = (uint8_t)((value >> (i * 4)) & 0x0FU);
+        Telemetry_SendChar(hex_chars[nibble]);
+    }
+}
