@@ -236,6 +236,16 @@ http://localhost:8090/touch_scope.html
 
 ---
 
+## Live Demonstration Videos
+
+| Hardware Touch on EVB (SW7 CVD Pad) | Web Oscilloscope & Dashboard Operation |
+| :---: | :---: |
+| [![S32K144W Hardware EVB Touch Demo](https://img.youtube.com/vi/WTYWGVHzmZY/hqdefault.jpg)](https://youtube.com/shorts/WTYWGVHzmZY) | [![FreeMASTER Lite Web Scope Dashboard](https://img.youtube.com/vi/AEYZ1T0ijv8/hqdefault.jpg)](https://youtu.be/AEYZ1T0ijv8) |
+| [▶ Watch EVB Touch Demo (YouTube Shorts)](https://youtube.com/shorts/WTYWGVHzmZY) | [▶ Watch Web Scope Demo (YouTube)](https://youtu.be/AEYZ1T0ijv8) |
+
+
+---
+
 ## References & Technical Standards
 
 This implementation references and builds upon the following academic papers and semiconductor application notes:

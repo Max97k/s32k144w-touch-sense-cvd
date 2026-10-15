@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,623 +7,579 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg-base: #0B0F19;
-      --bg-card: rgba(17, 24, 39, 0.78);
-      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --bg: #070B14;
+      --bg-2: #0C1220;
+      --panel: rgba(16, 23, 38, 0.72);
+      --panel-solid: #111827;
+      --line: rgba(148, 163, 184, 0.12);
+      --line-strong: rgba(148, 163, 184, 0.22);
+      --text: #E8EDF5;
+      --muted: #8A97AD;
+      --dim: #56627A;
+
       --nxp-blue: #0EAFE0;
       --nxp-orange: #FCA600;
       --nxp-green: #10B981;
       --nxp-red: #EF4444;
       --nxp-purple: #8B5CF6;
-      --text-main: #F3F4F6;
-      --text-muted: #9CA3AF;
+      --text-muted: #8A97AD;
+
+      /* rgb triplets for dynamic glow */
+      --c-idle: 34, 211, 238;
+      --c-touch: 52, 211, 153;
+      --c-glove: 45, 212, 191;
+      --c-water: 251, 191, 36;
+      --c-swipe: 167, 139, 250;
+      --c-off: 100, 116, 139;
+
+      --mono: 'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, 'Courier New', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei', Roboto, Helvetica, Arial, sans-serif;
+      --radius: 18px;
     }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); }
     body {
-      background: radial-gradient(circle at 50% 0%, #151D2F 0%, var(--bg-base) 70%);
-      color: var(--text-main);
+      font-family: var(--sans);
+      color: var(--text);
       min-height: 100vh;
-      padding: 20px;
+      padding: 18px clamp(12px, 2vw, 28px) 40px;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(14, 175, 224, 0.10), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.08), transparent 60%),
+        var(--bg);
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--bg-card);
-      border: 1px solid var(--bg-card-border);
-      backdrop-filter: blur(12px);
-      border-radius: 12px;
-      padding: 14px 24px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 12px;
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+    /* ───────────── Header ───────────── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(140deg, rgba(14,175,224,.25), rgba(16,185,129,.18));
+      border: 1px solid rgba(14,175,224,.35);
+      box-shadow: inset 0 0 18px rgba(14,175,224,.2);
     }
-    .brand-logo {
-      font-size: 21px;
-      font-weight: 800;
-      letter-spacing: 0.8px;
-      background: linear-gradient(135deg, #0EAFE0, #10B981);
-      -webkit-background-clip: text;
-      -webkit-fill-color: transparent;
-      -webkit-text-fill-color: transparent;
+    .brand-name {
+      font-size: 19px; font-weight: 800; letter-spacing: .3px;
+      background: linear-gradient(120deg, #E8EDF5 10%, #7DD3FC 60%, #6EE7B7);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
     }
-    .brand-title {
-      font-size: 14px;
-      color: var(--text-muted);
-      border-left: 1px solid rgba(255, 255, 255, 0.15);
-      padding-left: 14px;
+    .brand-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+    .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 34px; padding: 0 14px; border-radius: 999px;
+      font-size: 12.5px; font-weight: 600;
+      background: rgba(255,255,255,.04); border: 1px solid var(--line-strong); color: var(--muted);
+      transition: all .2s ease; user-select: none; white-space: nowrap;
     }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .pill.ok { color: #6EE7B7; border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); }
+    .pill.ok .dot { box-shadow: 0 0 10px currentColor; animation: pulse 1.8s infinite; }
+    .pill.bad { color: #FCA5A5; border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
+    .pill.hb .dot { background: #1E3A5F; transition: all .05s; }
+    .pill.hb.on { color: #fff; border-color: #0EAFE0; background: rgba(14,175,224,.35); box-shadow: 0 0 20px rgba(14,175,224,.7); }
+    .pill.hb.on .dot { background: #fff; box-shadow: 0 0 10px #0EAFE0, 0 0 20px #0EAFE0; }
+    .pill.hb.off { opacity: .55; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+    .seg {
+      display: inline-flex; padding: 3px; border-radius: 999px; height: 34px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--line-strong);
     }
-    .heartbeat-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      background: rgba(14, 175, 224, 0.08);
-      border: 1px solid rgba(14, 175, 224, 0.25);
-      color: var(--nxp-blue);
-      padding: 6px 14px;
-      border-radius: 20px;
-      transition: all 0.15s ease-out;
-      user-select: none;
+    .seg button {
+      border: 0; background: transparent; color: var(--muted);
+      font: 600 12.5px var(--sans); padding: 0 14px; border-radius: 999px; cursor: pointer;
+      transition: all .2s;
     }
-    .heartbeat-pill.active {
-      background: rgba(14, 175, 224, 0.45);
-      border-color: #0EAFE0;
-      color: #FFFFFF;
-      box-shadow: 0 0 22px rgba(14, 175, 224, 0.95), 0 0 40px rgba(14, 175, 224, 0.5);
-      transform: scale(1.06);
-      transition: all 0.04s ease-out;
+    .seg button.active { background: linear-gradient(120deg, rgba(14,175,224,.35), rgba(16,185,129,.25)); color: #fff; box-shadow: 0 0 12px rgba(14,175,224,.3); }
+    .btn-ghost {
+      height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+      font: 600 12.5px var(--sans); color: var(--text);
+      background: rgba(255,255,255,.04); border: 1px solid var(--line-strong);
+      transition: all .2s;
     }
-    .heartbeat-pill.offline {
-      background: rgba(107, 114, 128, 0.1);
-      border-color: rgba(107, 114, 128, 0.3);
-      color: #9CA3AF;
-      box-shadow: none;
-      transform: none;
-    }
-    .heartbeat-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--nxp-blue);
-      opacity: 0.35;
-      transition: all 0.15s;
-    }
-    .heartbeat-pill.active .heartbeat-dot {
-      opacity: 1;
-      background: #FFFFFF;
-      box-shadow: 0 0 12px #0EAFE0, 0 0 24px #0EAFE0;
-      transform: scale(1.4);
-      transition: all 0.04s ease-out;
-    }
-    .heartbeat-pill.offline .heartbeat-dot {
-      background: #6B7280;
-      opacity: 0.25;
-      box-shadow: none;
-    }
-    .conn-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: var(--nxp-green);
-      padding: 6px 14px;
-      border-radius: 20px;
-      transition: all 0.3s;
-    }
-    .conn-status.disconnected {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: rgba(239, 68, 68, 0.3);
-      color: var(--nxp-red);
-    }
-    .conn-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-      box-shadow: 0 0 10px currentColor;
-      animation: pulse 1.8s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
-    }
-    .btn-lang {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: var(--text-main);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-    .btn-lang:hover {
-      background: rgba(14, 175, 224, 0.2);
-      border-color: var(--nxp-blue);
-      color: #FFFFFF;
-      box-shadow: 0 0 12px rgba(14, 175, 224, 0.4);
-    }
-    .grid-container {
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 20px;
-    }
-    @media (max-width: 960px) {
-      .grid-container {
-        grid-template-columns: 1fr;
-      }
-    }
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--bg-card-border);
-      backdrop-filter: blur(12px);
-      border-radius: 14px;
-      padding: 20px;
-    }
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .chart-box {
-      height: 480px;
+    .btn-ghost:hover { border-color: var(--nxp-blue); box-shadow: 0 0 12px rgba(14,175,224,.3); }
+
+    /* ───────────── Layout ───────────── */
+    .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 18px; }
+    @media (max-width: 1080px) { .hero { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); backdrop-filter: blur(14px);
       position: relative;
     }
-    .indicator-card {
-      text-align: center;
-      padding: 24px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      transition: all 0.25s ease;
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+    .panel-h {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 16px 20px 0; font-size: 11.5px; font-weight: 700; letter-spacing: 1.1px;
+      text-transform: uppercase; color: var(--muted);
     }
-    .indicator-card.idle {
-      background: rgba(239, 68, 68, 0.08);
-      border-color: rgba(239, 68, 68, 0.3);
+    .panel-h .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--dim); font-size: 12px; }
+
+    /* ───────────── Touch Stage (hero) ───────────── */
+    .stage {
+      --c: var(--c-idle);
+      --p: 0;              /* proximity 0..1 */
+      overflow: hidden; min-height: 560px;
+      display: flex; flex-direction: column;
     }
-    .indicator-card.touched {
-      background: rgba(16, 185, 129, 0.18);
-      border-color: var(--nxp-green);
-      box-shadow: 0 0 35px rgba(16, 185, 129, 0.4);
+    .stage::before { /* dot grid */
+      content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background-image: radial-gradient(rgba(148,163,184,.13) 1px, transparent 1.2px);
+      background-size: 22px 22px;
+      mask-image: radial-gradient(circle at 50% 46%, #000 0%, transparent 72%);
     }
-    .indicator-card.water {
-      background: rgba(245, 158, 11, 0.18);
-      border-color: var(--nxp-orange);
-      box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
+    .stage::after { /* ambient state glow */
+      content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background: radial-gradient(circle at 50% 44%, rgba(var(--c), calc(0.05 + var(--p) * 0.22)), transparent 58%);
+      transition: background .25s;
     }
-    .indicator-card.offline {
-      background: rgba(239, 68, 68, 0.14);
-      border-color: rgba(239, 68, 68, 0.5);
-      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+    .stage-body { flex: 1; display: grid; place-items: center; position: relative; z-index: 1; padding: 6px 20px; }
+
+    .hud { position: absolute; z-index: 2; font-family: var(--mono); font-size: 11px; color: var(--dim); line-height: 1.6; }
+    .hud b { color: var(--muted); font-weight: 600; }
+    .hud.tl { top: 52px; left: 20px; }
+    .hud.tr { top: 52px; right: 20px; text-align: right; }
+    .hud .big { font-size: 34px; font-weight: 700; color: rgb(var(--c)); line-height: 1.05; letter-spacing: -.5px; transition: color .2s; text-shadow: 0 0 calc(var(--p) * 24px) rgba(var(--c), .6); }
+    .hud .unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+    .pad-wrap { position: relative; width: min(360px, 72vw); aspect-ratio: 1; display: grid; place-items: center; touch-action: none; }
+    .field {
+      position: absolute; inset: 0; border-radius: 30%;
+      border: 1.5px solid rgba(var(--c), calc(0.06 + var(--p) * 0.5));
+      transition: border-color .2s, transform .35s cubic-bezier(.2,.8,.2,1);
+      animation: breathe 3.2s ease-in-out infinite;
     }
-    .indicator-text {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      margin-top: 6px;
-      transition: color 0.2s;
-    }
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      font-size: 14px;
-    }
-    .stat-row:last-child {
-      border-bottom: none;
-    }
-    .stat-label {
-      color: var(--text-muted);
-    }
-    .stat-value {
-      font-weight: 700;
-      font-family: 'Courier New', monospace;
-    }
-    .confidence-bar-bg {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      height: 12px;
-      width: 100%;
+    .field.f1 { transform: scale(calc(1.00 - var(--p) * 0.10)); animation-delay: 0s; }
+    .field.f2 { transform: scale(calc(0.86 - var(--p) * 0.08)); animation-delay: .4s; }
+    .field.f3 { transform: scale(calc(0.74 - var(--p) * 0.05)); animation-delay: .8s; }
+    @keyframes breathe { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+    .pad {
+      position: relative; width: 58%; aspect-ratio: 1; border-radius: 24%;
+      cursor: pointer; user-select: none;
+      background:
+        radial-gradient(120% 120% at 25% 15%, rgba(255,230,200,.35), transparent 40%),
+        linear-gradient(145deg, #C98A4B 0%, #A86A32 45%, #7A4A22 100%);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,.25),
+        inset 0 -10px 24px rgba(0,0,0,.35),
+        0 0 0 6px rgba(10,14,24,.9),
+        0 0 0 7px rgba(var(--c), calc(0.25 + var(--p) * 0.6)),
+        0 0 calc(20px + var(--p) * 90px) rgba(var(--c), calc(0.15 + var(--p) * 0.55));
+      transition: transform .12s ease, box-shadow .2s ease;
+      display: grid; place-items: center;
       overflow: hidden;
-      margin-top: 6px;
     }
-    .confidence-bar-fill {
-      background: linear-gradient(90deg, var(--nxp-blue), var(--nxp-green));
-      height: 100%;
-      width: 0%;
-      transition: width 0.15s ease;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    .pad::before { /* solder mask tint by state */
+      content: ""; position: absolute; inset: 0; border-radius: inherit;
+      background: radial-gradient(circle at 50% 50%, rgba(var(--c), calc(var(--p) * 0.55)), rgba(var(--c), calc(var(--p) * 0.15)) 70%);
+      mix-blend-mode: screen; transition: background .2s;
     }
-    .controls-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
+    .pad::after { /* brushed copper lines */
+      content: ""; position: absolute; inset: 0; border-radius: inherit; opacity: .18;
+      background: repeating-linear-gradient(115deg, rgba(255,255,255,.25) 0 1px, transparent 1px 5px);
     }
-    .btn {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-main);
-      transition: all 0.2s;
+    .pad.pressed { transform: scale(.965); }
+    .pad svg.fp { position: relative; z-index: 1; width: 52%; opacity: calc(0.12 + var(--p) * 0.88); transition: opacity .2s; filter: drop-shadow(0 0 8px rgba(var(--c), .8)); }
+    .pad .tag {
+      position: absolute; z-index: 1; bottom: 9%; left: 50%; transform: translateX(-50%);
+      font: 700 11px var(--mono); letter-spacing: 1.5px; color: rgba(40,20,5,.75);
+      background: rgba(255,240,220,.35); padding: 2px 8px; border-radius: 6px;
     }
-    .btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: var(--nxp-blue);
+    .ripple {
+      position: absolute; left: 50%; top: 50%; width: 58%; aspect-ratio: 1; border-radius: 24%;
+      border: 2px solid rgba(var(--c), .9); transform: translate(-50%,-50%) scale(1);
+      pointer-events: none; animation: ripple 1.1s cubic-bezier(.1,.7,.3,1) forwards;
     }
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .badge-bare { background: rgba(16, 185, 129, 0.25); color: var(--nxp-green); border: 1px solid var(--nxp-green); }
-    .badge-water { background: rgba(245, 158, 11, 0.2); color: var(--nxp-orange); border: 1px solid var(--nxp-orange); }
-    .badge-idle { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
-    .badge-offline { background: rgba(239, 68, 68, 0.25); color: #EF4444; border: 1px solid #EF4444; }
-    .badge-swipe { background: rgba(139, 92, 246, 0.2); color: var(--nxp-purple); border: 1px solid var(--nxp-purple); }
+    @keyframes ripple { to { transform: translate(-50%,-50%) scale(1.85); opacity: 0; border-width: 1px; } }
 
-    /* Interactive Plain Language Technical Glossary Floating Modal */
+    .pin { position: absolute; font: 600 10.5px var(--mono); color: var(--dim); white-space: nowrap; }
+    .pin i { display: inline-block; width: 26px; height: 1px; background: var(--line-strong); vertical-align: middle; margin: 0 6px; }
+    .pin.l { left: -6%; top: 50%; transform: translate(-100%, -50%); }
+    .pin.r { right: -6%; top: 50%; transform: translate(100%, -50%); }
+    @media (max-width: 720px) { .pin { display: none; } .hud .big { font-size: 22px; } .hud { font-size: 10px; } }
+
+    .verdict { position: relative; z-index: 1; text-align: center; padding: 6px 20px 4px; }
+    .verdict-title {
+      font-size: clamp(22px, 3vw, 30px); font-weight: 800; letter-spacing: .5px;
+      color: rgb(var(--c)); transition: color .2s;
+      text-shadow: 0 0 calc(var(--p) * 30px) rgba(var(--c), .55);
+    }
+    .verdict-sub { margin-top: 6px; font-size: 13px; color: var(--muted); min-height: 18px; }
+
+    .chips { position: relative; z-index: 1; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; padding: 14px 20px 6px; }
+    .chip {
+      --cc: var(--c-off);
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      color: var(--dim); border: 1px solid var(--line); background: rgba(255,255,255,.02);
+      transition: all .2s;
+    }
+    .chip .k { font: 700 10px var(--mono); opacity: .7; }
+    .chip.on { color: rgb(var(--cc)); border-color: rgba(var(--cc), .6); background: rgba(var(--cc), .12); box-shadow: 0 0 16px rgba(var(--cc), .25); }
+
+    .stage-foot {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+      padding: 12px 20px 18px;
+    }
+    .scenarios { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sbtn {
+      height: 32px; padding: 0 12px; border-radius: 10px; cursor: pointer;
+      font: 600 12px var(--sans); color: var(--text);
+      background: rgba(255,255,255,.04); border: 1px solid var(--line-strong);
+      transition: all .15s;
+    }
+    .sbtn:hover:not(:disabled) { border-color: rgba(var(--c-idle), .7); background: rgba(var(--c-idle), .08); }
+    .sbtn.active { border-color: rgba(var(--c-touch), .7); background: rgba(var(--c-touch), .12); color: #A7F3D0; }
+    .sbtn:disabled { opacity: .35; cursor: not-allowed; }
+    .stage-tip { font-size: 12px; color: var(--dim); }
+
+    .stage[data-state="offline"] .field { animation: none; border-style: dashed; }
+    .stage[data-state="offline"] .pad { filter: grayscale(.85) brightness(.6); cursor: default; }
+
+    /* ───────────── Right column ───────────── */
+    .side { display: grid; gap: 18px; align-content: start; }
+    .card-pad { padding: 14px 20px 18px; }
+
+    .gauge-row { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: center; }
+    .ring { position: relative; width: 150px; height: 150px; }
+    .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring .track { stroke: rgba(148,163,184,.12); }
+    .ring .val { stroke: url(#confGrad); transition: stroke-dashoffset .15s ease; filter: drop-shadow(0 0 6px rgba(16,185,129,.6)); }
+    .ring .tick { stroke-width: 15; }
+    .ring-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+    .ring-center .v { font: 700 30px var(--mono); }
+    .ring-center .l { font-size: 10.5px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; }
+    .legend-mini { font-size: 12px; color: var(--muted); line-height: 1.9; }
+    .legend-mini .sw { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+    .meter { margin-top: 16px; }
+    .meter-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .meter-top b { color: var(--text); font-family: var(--mono); }
+    .bar { position: relative; height: 14px; border-radius: 8px; background: rgba(148,163,184,.1); overflow: visible; }
+    .bar-fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 8px; background: linear-gradient(90deg, #0EAFE0, #8B5CF6 55%, #34D399); transition: width .08s linear; box-shadow: 0 0 14px rgba(139,92,246,.45); }
+    .bar-mark { position: absolute; top: -5px; bottom: -5px; width: 2px; background: #E8EDF5; border-radius: 2px; }
+    .bar-mark span { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font: 600 10px var(--mono); color: var(--muted); white-space: nowrap; }
+    .bar-mark.approach { background: rgba(251,191,36,.8); }
+    .bar-scale { display: flex; justify-content: space-between; margin-top: 22px; font: 500 10px var(--mono); color: var(--dim); }
+
+    .evb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .led {
+      --lc: 100,116,139;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 14px 6px 12px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.02); transition: all .08s;
+    }
+    .led .bulb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.25), rgba(var(--lc), .18) 60%); border: 1px solid rgba(var(--lc), .35); transition: all .06s; }
+    .led.on { border-color: rgba(var(--lc), .55); background: rgba(var(--lc), .09); }
+    .led.on .bulb { background: radial-gradient(circle at 35% 30%, #fff, rgb(var(--lc)) 55%); box-shadow: 0 0 14px rgb(var(--lc)), 0 0 34px rgba(var(--lc), .7); }
+    .led .n { font-size: 12px; font-weight: 700; }
+    .led .p { font: 500 10.5px var(--mono); color: var(--dim); }
+    .led.r { --lc: 239, 68, 68; } .led.g { --lc: 16, 185, 129; } .led.b { --lc: 14, 175, 224; }
+
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .kpi { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid var(--line); }
+    .kpi .l { font-size: 11px; color: var(--muted); }
+    .kpi .v { font: 700 18px var(--mono); margin-top: 3px; }
+
+    /* ───────────── Pipeline ───────────── */
+    .pipeline { margin-top: 18px; padding: 16px 20px 20px; }
+    .flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; margin-top: 14px; position: relative; }
+    @media (max-width: 1080px) { .flow { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 14px; } }
+    @media (max-width: 600px)  { .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .node { position: relative; padding: 0 6px; }
+    .node + .node::before {
+      content: ""; position: absolute; left: -6px; top: 26px; width: 12px; height: 2px;
+      background: linear-gradient(90deg, rgba(14,175,224,.15) 0%, #7DD3FC 50%, rgba(14,175,224,.15) 100%);
+      background-size: 200% 100%; animation: run 1.2s linear infinite;
+    }
+    .offline-mode .node + .node::before { animation: none; background: rgba(148,163,184,.2); }
+    .node-box {
+      border-radius: 14px; padding: 12px 12px 11px; height: 100%;
+      background: rgba(255,255,255,.025); border: 1px solid var(--line);
+      transition: all .2s;
+    }
+    .node.hot .node-box { border-color: rgba(var(--c-touch), .55); background: rgba(var(--c-touch), .07); box-shadow: 0 0 18px rgba(var(--c-touch), .15); }
+    .node.warn .node-box { border-color: rgba(var(--c-water), .55); background: rgba(var(--c-water), .07); }
+    .node .step { font: 700 10px var(--mono); color: var(--nxp-blue); letter-spacing: 1px; }
+    .node .t { font-size: 12.5px; font-weight: 700; margin: 3px 0 6px; }
+    .node .v { font: 700 15px var(--mono); }
+    .node .d { font-size: 11px; color: var(--dim); margin-top: 4px; line-height: 1.4; }
+    @keyframes run { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+    /* ───────────── Scope & log ───────────── */
+    .lower { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr); gap: 18px; margin-top: 18px; }
+    @media (max-width: 1080px) { .lower { grid-template-columns: 1fr; } }
+    .scope-box { height: 360px; padding: 8px 14px 4px; }
+    .scope-ctrl { display: flex; gap: 8px; padding: 6px 20px 16px; flex-wrap: wrap; }
+    .log { list-style: none; padding: 10px 14px 16px; max-height: 420px; overflow: auto; }
+    .log li {
+      display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center;
+      padding: 9px 8px; border-bottom: 1px solid var(--line); font-size: 12.5px;
+      animation: slideIn .3s ease;
+    }
+    .log li:last-child { border-bottom: 0; }
+    .log li .m { width: 8px; height: 8px; border-radius: 50%; }
+    .log li .s { color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+    .log li .tm { font: 500 11px var(--mono); color: var(--dim); }
+    .log .empty { color: var(--dim); font-size: 12.5px; text-align: center; padding: 30px 0; display: block; border: 0; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } }
+
+    /* ───────────── Docs ───────────── */
+    details.docs { margin-top: 18px; }
+    details.docs > summary {
+      list-style: none; cursor: pointer; padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; font-weight: 700; color: var(--muted);
+    }
+    details.docs > summary::-webkit-details-marker { display: none; }
+    details.docs > summary .chev { transition: transform .2s; }
+    details.docs[open] > summary .chev { transform: rotate(180deg); }
+    .docs-body { padding: 0 28px 28px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .tabs button { height: 30px; padding: 0 14px; border-radius: 999px; font: 700 12.5px var(--sans); cursor: pointer; border: 1px solid var(--line-strong); background: rgba(255,255,255,.04); color: var(--muted); }
+    .tabs button.active { border-color: rgba(14,175,224,.5); background: rgba(14,175,224,.16); color: #7DD3FC; }
+
+    .readme-h2 { font-size: 15px; font-weight: 700; color: #7DD3FC; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(14,175,224,.18); }
+    .readme-p { font-size: 13.5px; line-height: 1.7; color: #CBD5E1; margin-bottom: 10px; }
+    .readme-ul, .readme-ol { padding-left: 22px; margin-bottom: 10px; }
+    .readme-ul li, .readme-ol li { font-size: 13px; line-height: 1.65; color: #CBD5E1; margin-bottom: 6px; }
+    .readme-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 12px; }
+    .readme-table th { background: rgba(14,175,224,.1); color: #7DD3FC; font-weight: 700; padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(14,175,224,.25); }
+    .readme-table td { padding: 7px 10px; color: #CBD5E1; border-bottom: 1px solid var(--line); }
+    .readme-body code { background: rgba(14,175,224,.1); color: #7DD3FC; padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11.5px; }
+    .readme-code { background: rgba(0,0,0,.4); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-family: var(--mono); font-size: 12px; color: #A3E635; white-space: pre-wrap; margin-bottom: 12px; line-height: 1.65; }
+
+    /* ───────────── Glossary ───────────── */
+    [data-glossary] { cursor: help; }
+    span[data-glossary] { text-decoration: underline dotted rgba(14,175,224,.55); text-underline-offset: 4px; }
+    span[data-glossary]:hover { color: #7DD3FC !important; }
+    .node-box[data-glossary]:hover, .kpi[data-glossary]:hover { border-color: rgba(14,175,224,.45); }
     .glossary-modal {
-      position: fixed;
-      z-index: 10000;
-      width: 370px;
-      max-width: 90vw;
-      background: rgba(15, 23, 42, 0.97);
-      border: 1px solid rgba(14, 175, 224, 0.5);
-      border-radius: 14px;
-      padding: 16px 18px;
-      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(14, 175, 224, 0.3);
-      backdrop-filter: blur(16px);
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(6px) scale(0.97);
-      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      position: fixed; z-index: 10000; width: 370px; max-width: 90vw;
+      background: rgba(12, 18, 32, .97); border: 1px solid rgba(14,175,224,.45);
+      border-radius: 14px; padding: 16px 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.8), 0 0 24px rgba(14,175,224,.25);
+      backdrop-filter: blur(16px); pointer-events: none;
+      opacity: 0; transform: translateY(6px) scale(.97);
+      transition: opacity .18s cubic-bezier(.16,1,.3,1), transform .18s cubic-bezier(.16,1,.3,1);
     }
-    .glossary-modal.visible {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    .glossary-header {
-      margin-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding-bottom: 8px;
-    }
-    .glossary-badge {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-bottom: 6px;
-      background: rgba(14, 175, 224, 0.15);
-      border: 1px solid rgba(14, 175, 224, 0.4);
-      color: #0EAFE0;
-    }
-    .glossary-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: #F3F4F6;
-      line-height: 1.35;
-    }
-    .glossary-section {
-      margin-bottom: 10px;
-    }
-    .glossary-section.highlight {
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-    }
-    .glossary-section-title {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #9CA3AF;
-      margin-bottom: 4px;
-    }
-    .glossary-section.highlight .glossary-section-title {
-      color: #10B981;
-    }
-    .glossary-text {
-      font-size: 12.5px;
-      line-height: 1.55;
-      color: #E2E8F0;
-    }
-    .glossary-tip {
-      font-size: 10px;
-      color: #64748B;
-      text-align: right;
-      margin-top: 4px;
-    }
-    [data-glossary] {
-      cursor: help;
-      text-decoration: underline dotted rgba(14, 175, 224, 0.65);
-      text-underline-offset: 4px;
-      transition: all 0.2s ease;
-    }
-    [data-glossary]:hover {
-      color: #38BDF8 !important;
-      text-decoration-color: #0EAFE0;
-      text-shadow: 0 0 10px rgba(14, 175, 224, 0.6);
-    }
+    .glossary-modal.visible { opacity: 1; transform: none; }
+    .g-badge { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; padding: 2px 8px; border-radius: 4px; margin-bottom: 6px; border: 1px solid; }
+    .g-title { font-size: 15px; font-weight: 800; line-height: 1.35; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--line-strong); }
+    .g-sec { margin-bottom: 10px; }
+    .g-sec.hl { background: rgba(16,185,129,.09); border: 1px solid rgba(16,185,129,.28); border-radius: 8px; padding: 10px 12px; }
+    .g-sec-t { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .g-sec.hl .g-sec-t { color: #34D399; }
+    .g-text { font-size: 12.5px; line-height: 1.6; color: #E2E8F0; }
+    .g-tip { font-size: 10px; color: var(--dim); text-align: right; }
 
-    /* README Section Styles */
-    .readme-h2 {
-      font-size: 15px;
-      font-weight: 700;
-      color: #0EAFE0;
-      margin: 20px 0 10px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(14, 175, 224, 0.2);
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0;
+      background: rgba(12,18,32,.96); border: 1px solid var(--line-strong); color: var(--text);
+      padding: 10px 16px; border-radius: 12px; font-size: 13px; z-index: 9999; transition: all .25s; pointer-events: none;
     }
-    .readme-p {
-      font-size: 13.5px;
-      line-height: 1.65;
-      color: #D1D5DB;
-      margin-bottom: 10px;
-    }
-    .readme-ul, .readme-ol {
-      padding-left: 22px;
-      margin-bottom: 10px;
-    }
-    .readme-ul li, .readme-ol li {
-      font-size: 13px;
-      line-height: 1.6;
-      color: #D1D5DB;
-      margin-bottom: 6px;
-    }
-    .readme-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-      margin-bottom: 12px;
-    }
-    .readme-table th {
-      background: rgba(14, 175, 224, 0.12);
-      color: #0EAFE0;
-      font-weight: 700;
-      padding: 8px 10px;
-      text-align: left;
-      border-bottom: 1px solid rgba(14, 175, 224, 0.3);
-    }
-    .readme-table td {
-      padding: 7px 10px;
-      color: #D1D5DB;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .readme-table tr:hover td {
-      background: rgba(255, 255, 255, 0.03);
-    }
-    .readme-table code {
-      background: rgba(14, 175, 224, 0.1);
-      color: #38BDF8;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 11.5px;
-    }
-    .readme-body code {
-      background: rgba(14, 175, 224, 0.1);
-      color: #38BDF8;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-    }
-    .readme-code {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      padding: 14px 16px;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      color: #A3E635;
-      white-space: pre-wrap;
-      margin-bottom: 12px;
-      line-height: 1.65;
-    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
   </style>
 </head>
 <body>
 
-  <div class="header-bar">
+  <!-- ═════════════ Header ═════════════ -->
+  <header class="topbar">
     <div class="brand">
-      <div class="brand-logo" id="brandTitle" data-glossary="cvd">Touch Sensing Demo</div>
-      <div class="brand-title" id="pageSubTitle" data-glossary="board">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
-    </div>
-    <div class="header-actions">
-      <!-- 0.1s ON / 0.9s OFF Synchronized Hardware Heartbeat Indicator -->
-      <div class="heartbeat-pill" id="heartbeatPill" data-glossary="heartbeat" title="Blinks synchronously with Board Blue LED (0.1s ON, 0.9s OFF)">
-        <div class="heartbeat-dot" id="heartbeatDot"></div>
-        <span id="heartbeatLabel">MCU Heartbeat (0.1s/0.9s)</span>
+      <div class="brand-mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DD3FC" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 3a7 7 0 0 0-7 7v2"/><path d="M19 12v-2a7 7 0 0 0-3.2-5.9"/><path d="M9 21c1.3-1.8 2-4 2-6.5V11a1 1 0 0 1 2 0v1.5"/><path d="M8 13.5c0 2.2-.6 4.3-1.7 6"/><path d="M16 14c0 2.8-.7 5.3-2 7.2"/>
+        </svg>
       </div>
-
-      <!-- WebSocket Connection Pill -->
-      <div class="conn-status" id="connPill">
-        <div class="conn-dot" id="connDot"></div>
-        <span id="connLabel">Connecting (8090)...</span>
-      </div>
-
-      <!-- Language Switch Button -->
-      <button class="btn-lang" onclick="toggleLanguage()" id="langBtn">
-        <span>🌐</span> <span id="langBtnText">繁體中文 / EN</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="grid-container">
-    <!-- Main Oscilloscope Card -->
-    <div class="card">
-      <div class="card-title">
-        <span id="scopeTitle" data-glossary="systick">Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
-        <div style="font-size: 12px; font-weight: normal; color: var(--text-muted);">
-          <span id="rollingWindowText" data-glossary="rollingWindow">Rolling Window: 100 Samples</span>
-        </div>
-      </div>
-      <div class="chart-box">
-        <canvas id="scopeCanvas"></canvas>
-      </div>
-      <div class="controls-row">
-        <button class="btn" onclick="togglePause()" id="pauseBtn">Pause Scope</button>
-        <button class="btn" onclick="resetZoom()" id="resetBtn">Reset Axis</button>
-        <button class="btn" onclick="toggleSim()" id="simBtn">Toggle Demo Mode</button>
+      <div>
+        <div class="brand-name" data-i18n="brandTitle">Touch Sensing Demo</div>
+        <div class="brand-sub"><span data-glossary="board" data-i18n="subTitle">XS32K14WEVB-Q064 CVD Capacitive Touch Engine</span></div>
       </div>
     </div>
+    <div class="actions">
+      <div class="pill hb off" id="hbPill" data-glossary="heartbeat"><span class="dot"></span><span id="hbLabel">Heartbeat</span></div>
+      <div class="pill bad" id="connPill"><span class="dot"></span><span id="connLabel">Connecting…</span></div>
+      <div class="seg" role="tablist">
+        <button id="modeHw" class="active" onclick="setMode(false)" data-i18n="modeHw">Hardware</button>
+        <button id="modeDemo" onclick="setMode(true)" data-i18n="modeDemo">Demo</button>
+      </div>
+      <button class="btn-ghost" onclick="toggleLanguage()" id="langBtn">🌐 EN</button>
+    </div>
+  </header>
 
-    <!-- Side Panel Diagnostics & Gauges -->
-    <div>
-      <!-- Touch Status Card -->
-      <div class="card indicator-card idle" id="touchCard">
-        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);" id="decisionTitle" data-glossary="decision">
-          Hardware Touch Decision
-        </div>
-        <div class="indicator-text" id="touchStatusText" style="color: var(--nxp-red);">
-          IDLE / UNTOUCHED (RED LED)
-        </div>
-        <div style="margin-top: 8px;">
-          <span class="badge badge-idle" id="classBadge" data-glossary="decision">CLASS: IDLE</span>
-        </div>
+  <!-- ═════════════ Hero: Touch stage + side ═════════════ -->
+  <section class="hero">
+
+    <div class="panel stage" id="stage" data-state="offline">
+      <div class="panel-h" style="position:relative; z-index:2;">
+        <span data-glossary="cvd" data-i18n="stageTitle">Live Touch Electrode · SW7</span>
+        <span class="hint mono" id="frameInfo" data-glossary="systick">66.7 Hz · 15.0 ms</span>
       </div>
 
-      <!-- TinyML & Metrics Card -->
-      <div class="card">
-        <div class="card-title">
-          <span id="metricsTitle">Algorithm Metrics</span>
-          <span style="font-size: 11px; font-weight: normal; color: var(--nxp-blue); text-transform: none; display: flex; align-items: center; gap: 4px;">
-            <span>💡</span><span id="metricsHelpHint">懸停名詞查看白話解析</span>
-          </span>
-        </div>
-        
-        <div class="stat-row">
-          <span class="stat-label" id="lblDelta" data-glossary="delta">Net Shift &Delta;<sub>dyn</sub>:</span>
-          <span class="stat-value" id="valDelta" style="color: var(--nxp-purple);">+0.0 LSB</span>
-        </div>
+      <div class="hud tl">
+        <div data-glossary="delta" class="no-ul"><b data-i18n="hudDelta">NET SHIFT Δdyn</b></div>
+        <div class="big mono" id="hudDelta">+0.0<span class="unit">LSB</span></div>
+        <div style="margin-top:10px;"><b data-i18n="hudHold">HOLD</b> <span id="hudHold" class="mono">0.00 s</span></div>
+        <div><b data-i18n="hudCount">TOUCHES</b> <span id="hudCount" class="mono">0</span></div>
+      </div>
+      <div class="hud tr">
+        <div data-glossary="conf" class="no-ul"><b data-i18n="hudConf">CONFIDENCE</b></div>
+        <div class="big mono" id="hudConf">0<span class="unit">%</span></div>
+        <div style="margin-top:10px;"><b>DTA</b> <span id="hudDta" class="mono">48.0</span></div>
+        <div><b data-i18n="hudExec">EXEC</b> <span id="hudExec" class="mono">— µs</span></div>
+      </div>
 
-        <div class="stat-row">
-          <span class="stat-label" id="lblKalman" data-glossary="kalman">Kalman Filter x<sub>est</sub>:</span>
-          <span class="stat-value" id="valKalman" style="color: var(--nxp-green);">185.0 LSB</span>
-        </div>
-
-        <div class="stat-row">
-          <span class="stat-label" id="lblBaseline" data-glossary="baseline">Dynamic Baseline:</span>
-          <span class="stat-value" id="valBaseline" style="color: var(--nxp-orange);">185.0 LSB</span>
-        </div>
-
-        <div class="stat-row">
-          <span class="stat-label" id="lblRaw" data-glossary="raw">Raw Differential &Delta;D:</span>
-          <span class="stat-value" id="valRaw" style="color: var(--nxp-blue);">+185 LSB</span>
-        </div>
-
-        <div class="stat-row">
-          <span class="stat-label" id="lblDta" data-glossary="dta">DTA Threshold:</span>
-          <span class="stat-value" id="valDta" style="color: var(--text-muted);">48.0 LSB</span>
-        </div>
-
-        <div class="stat-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-          <div style="display: flex; justify-content: space-between; width: 100%;">
-            <span class="stat-label" id="lblConf" data-glossary="conf">TinyML Confidence:</span>
-            <span class="stat-value" id="valConf" style="color: var(--nxp-blue);">0%</span>
-          </div>
-          <div class="confidence-bar-bg">
-            <div class="confidence-bar-fill" id="confFill"></div>
+      <div class="stage-body">
+        <div class="pad-wrap" id="padWrap">
+          <div class="field f1"></div><div class="field f2"></div><div class="field f3"></div>
+          <div class="pin l" data-glossary="raw">PTC17 · DRIVE<i></i></div>
+          <div class="pin r" data-glossary="raw"><i></i>PTC16 · SENSE</div>
+          <div class="pad" id="pad">
+            <svg class="fp" viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+              <path d="M18 26c2-8 9-13 17-12 7 1 12 7 12 15"/>
+              <path d="M14 36c0-3 .5-6 1.5-8"/>
+              <path d="M22 44c-1-3-1.5-7-1-11 1-6 6-10 12-9.5 6 .5 10 5.5 10 11.5 0 4-.5 8-2 12"/>
+              <path d="M27 50c-1.5-4-2-9-1.5-14 .5-3.5 3-6 6.5-5.5 3 .4 5 3 4.8 6.2-.2 5-1 10-3 14"/>
+              <path d="M32 54c-.8-4-1.2-9-.6-14"/>
+              <path d="M48 40c-.2 3-.8 6-1.8 9"/>
+              <path d="M22 18c3-3 7-4.5 11-4.5"/>
+            </svg>
+            <span class="tag">SW7</span>
           </div>
         </div>
+      </div>
 
-        <div class="stat-row">
-          <span class="stat-label" id="lblExec" data-glossary="exec">MCU Execution Time:</span>
-          <span class="stat-value" id="valExec" style="color: var(--nxp-green);">210 &mu;s</span>
-        </div>
+      <div class="verdict">
+        <div class="verdict-title" id="verdictTitle">—</div>
+        <div class="verdict-sub" id="verdictSub"></div>
+      </div>
 
-        <div class="stat-row">
-          <span class="stat-label" id="lblSafety" data-glossary="safety">Real-Time Safety Headroom:</span>
-          <span class="stat-value" id="valSafety" style="color: var(--text-muted);">&lt; 15,000 &mu;s (98.6% Headroom)</span>
-        </div>
+      <div class="chips" id="chips">
+        <span class="chip" data-cls="0" style="--cc: var(--c-idle)"><span class="k">0</span><span data-i18n="cls0">Idle</span></span>
+        <span class="chip" data-cls="1" style="--cc: var(--c-touch)"><span class="k">1</span><span data-i18n="cls1">Bare finger</span></span>
+        <span class="chip" data-cls="2" style="--cc: var(--c-glove)"><span class="k">2</span><span data-i18n="cls2">Glove / Acrylic</span></span>
+        <span class="chip" data-cls="3" style="--cc: var(--c-water)"><span class="k">3</span><span data-i18n="cls3">Water</span></span>
+        <span class="chip" data-cls="4" style="--cc: var(--c-swipe)"><span class="k">4</span><span data-i18n="cls4">Edge swipe</span></span>
+      </div>
 
-        <div class="stat-row">
-          <span class="stat-label" id="lblHeartbeat" data-glossary="heartbeat">MCU Heartbeat (0.2 Hz):</span>
-          <span class="stat-value" id="valHeartbeat" style="color: var(--nxp-blue);">● IDLE (LOW)</span>
+      <div class="stage-foot">
+        <div class="scenarios">
+          <button class="sbtn" id="scAuto" onclick="toggleAuto()" data-i18n="scAuto">▶ Auto loop</button>
+          <button class="sbtn" onclick="runScenario('glove', 1400)" data-i18n="scGlove">🧤 Glove</button>
+          <button class="sbtn" onclick="runScenario('water', 1600)" data-i18n="scWater">💧 Water</button>
+          <button class="sbtn" onclick="runScenario('swipe', 260)" data-i18n="scSwipe">↔ Edge swipe</button>
         </div>
-
-        <div class="stat-row">
-          <span class="stat-label" id="lblLeds" data-glossary="leds">Hardware Board LEDs:</span>
-          <span class="stat-value" id="valLeds" style="font-size: 12px; color: #FCA600;">🔴 RED: ON | 🔵 BLUE: OFF</span>
-        </div>
+        <div class="stage-tip" id="stageTip"></div>
       </div>
     </div>
-  </div>
 
-  <!-- ── README / Project Documentation Section ─────────────────────────────── -->
-  <div id="readmeSection" style="margin-top: 28px;">
-    <div class="card" style="padding: 28px 32px;">
-      <!-- Tab Bar -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-        <div style="display:flex; gap:8px;">
-          <button id="tabBtnEn" onclick="switchReadmeTab('en')"
-            style="padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;
-                   border:1px solid rgba(14,175,224,0.5); background:rgba(14,175,224,0.18); color:#0EAFE0;">
-            🇬🇧 English
-          </button>
-          <button id="tabBtnZh" onclick="switchReadmeTab('zh')"
-            style="padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;
-                   border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#9CA3AF;">
-            🇹🇼 繁體中文
-          </button>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-h"><span data-i18n="decisionTitle">Decision Engine</span><span class="hint" data-i18n="hoverHint">💡 Hover terms for a plain guide</span></div>
+        <div class="card-pad">
+          <div class="gauge-row">
+            <div class="ring" data-glossary="conf">
+              <svg viewBox="0 0 120 120">
+                <defs>
+                  <linearGradient id="confGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#0EAFE0"/><stop offset="1" stop-color="#34D399"/>
+                  </linearGradient>
+                </defs>
+                <circle class="track" cx="60" cy="60" r="50" stroke-width="10" fill="none"/>
+                <circle class="val" id="ringVal" cx="60" cy="60" r="50" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+                <circle class="tick" id="tickRel" cx="60" cy="60" r="50" fill="none" stroke="#FBBF24" stroke-dasharray="2 312.16"/>
+                <circle class="tick" id="tickTrg" cx="60" cy="60" r="50" fill="none" stroke="#E8EDF5" stroke-dasharray="2 312.16"/>
+              </svg>
+              <div class="ring-center"><div><div class="v" id="ringText">0%</div><div class="l">TinyML</div></div></div>
+            </div>
+            <div class="legend-mini" data-glossary="decision">
+              <div><span class="sw" style="background:#E8EDF5"></span><span data-i18n="lgTrigger">Trigger ≥ 0.64</span></div>
+              <div><span class="sw" style="background:#FBBF24"></span><span data-i18n="lgRelease">Release ≤ 0.38</span></div>
+              <div style="margin-top:6px; color:var(--dim); font-size:11.5px; line-height:1.5;" data-i18n="lgNote">3-step hysteresis prevents chattering at the threshold edge.</div>
+            </div>
+          </div>
+
+          <div class="meter" data-glossary="dta">
+            <div class="meter-top"><span data-i18n="meterTitle">Signal vs. threshold (log scale)</span><b id="meterVal">0 LSB</b></div>
+            <div class="bar">
+              <div class="bar-fill" id="barFill"></div>
+              <div class="bar-mark approach" id="markApproach"><span>0.4×TH</span></div>
+              <div class="bar-mark" id="markTh"><span>DTA</span></div>
+            </div>
+            <div class="bar-scale"><span>1</span><span>10</span><span>100</span><span>1k</span><span>3k</span></div>
+          </div>
         </div>
-        <span style="font-size:12px; color:var(--text-muted);">📄 Project Documentation / 專案文件</span>
       </div>
 
-      <!-- EN README Content -->
-      <div id="readmeContentEn" class="readme-body" style="display:block;">
-        <h1 style="font-size:20px; font-weight:800; color:#F3F4F6; margin-bottom:12px;">
+      <div class="panel">
+        <div class="panel-h"><span data-glossary="leds" data-i18n="evbTitle">EVB LED Mirror</span><span class="hint mono">PTE7 · PTE0 · PTE3</span></div>
+        <div class="card-pad">
+          <div class="evb">
+            <div class="led r" id="ledR"><div class="bulb"></div><div class="n" data-i18n="ledRed">RED</div><div class="p" data-i18n="ledRedD">Standby</div></div>
+            <div class="led g" id="ledG"><div class="bulb"></div><div class="n" data-i18n="ledGreen">GREEN</div><div class="p" data-i18n="ledGreenD">Touch</div></div>
+            <div class="led b" id="ledB" data-glossary="heartbeat"><div class="bulb"></div><div class="n" data-i18n="ledBlue">BLUE</div><div class="p" data-i18n="ledBlueD">0.1 s / 0.9 s</div></div>
+          </div>
+          <div class="kpis">
+            <div class="kpi" data-glossary="exec"><div class="l" data-i18n="kExec">Exec time</div><div class="v" id="kExec">—</div></div>
+            <div class="kpi" data-glossary="safety"><div class="l" data-i18n="kLoad">CPU load</div><div class="v" id="kLoad">—</div></div>
+            <div class="kpi"><div class="l" data-i18n="kLast">Last press</div><div class="v" id="kLast">—</div></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ═════════════ Signal pipeline ═════════════ -->
+  <section class="panel pipeline" id="pipeline">
+    <div class="panel-h" style="padding:0;"><span data-i18n="pipeTitle">Signal Chain · every 15 ms frame</span><span class="hint mono" id="cycleInfo">cycle —</span></div>
+    <div class="flow">
+      <div class="node" id="nRaw"><div class="node-box" data-glossary="raw"><div class="step">01</div><div class="t" data-i18n="nRaw">Bipolar CVD ΔD</div><div class="v mono" id="vRaw">—</div><div class="d" data-i18n="nRawD">VB − VA, 2× gain</div></div></div>
+      <div class="node" id="nMfp"><div class="node-box" data-glossary="mfp"><div class="step">02</div><div class="t" data-i18n="nMfp">Spread-spectrum burst</div><div class="v mono">9 × LFSR</div><div class="d" data-i18n="nMfpD">Delay hop {15,23,31}</div></div></div>
+      <div class="node" id="nKal"><div class="node-box" data-glossary="kalman"><div class="step">03</div><div class="t" data-i18n="nKal">Trimmed mean → Kalman</div><div class="v mono" id="vKal">—</div><div class="d">x<sub>est</sub></div></div></div>
+      <div class="node" id="nBase"><div class="node-box" data-glossary="baseline"><div class="step">04</div><div class="t" data-i18n="nBase">Dynamic baseline</div><div class="v mono" id="vBase">—</div><div class="d" data-i18n="nBaseD">4-zone asymmetric</div></div></div>
+      <div class="node" id="nDelta"><div class="node-box" data-glossary="delta"><div class="step">05</div><div class="t">Δdyn</div><div class="v mono" id="vDelta">—</div><div class="d">x<sub>est</sub> − baseline</div></div></div>
+      <div class="node" id="nCls"><div class="node-box" data-glossary="conf"><div class="step">06</div><div class="t" data-i18n="nCls">Envelope classifier</div><div class="v mono" id="vCls">—</div><div class="d" data-i18n="nClsD">4 features · confidence</div></div></div>
+      <div class="node" id="nDec"><div class="node-box" data-glossary="decision"><div class="step">07</div><div class="t" data-i18n="nDec">Decision</div><div class="v mono" id="vDec">—</div><div class="d" data-i18n="nDecD">Hysteresis 0.64 / 0.38</div></div></div>
+    </div>
+  </section>
+
+  <!-- ═════════════ Scope + event log ═════════════ -->
+  <section class="lower">
+    <div class="panel">
+      <div class="panel-h">
+        <span data-glossary="systick" data-i18n="scopeTitle">Real-time oscilloscope</span>
+        <span class="hint" data-glossary="rollingWindow" data-i18n="rollingWindowText">Rolling 100 samples · shaded = touch</span>
+      </div>
+      <div class="scope-box"><canvas id="scopeCanvas"></canvas></div>
+      <div class="scope-ctrl">
+        <button class="btn-ghost" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="btn-ghost" id="clearBtn" onclick="clearScope()">Clear</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span data-i18n="logTitle">Touch events</span><button class="btn-ghost" style="height:26px; font-size:11px;" onclick="clearLog()" data-i18n="logClear">Clear</button></div>
+      <ul class="log" id="log"></ul>
+    </div>
+  </section>
+
+  <!-- ═════════════ Docs ═════════════ -->
+  <details class="panel docs">
+    <summary><span>📄 <span data-i18n="docsTitle">Project documentation</span></span><span class="chev">▾</span></summary>
+    <div class="docs-body">
+      <div class="tabs">
+        <button id="tabEn" class="active" onclick="switchReadmeTab('en')">English</button>
+        <button id="tabZh" onclick="switchReadmeTab('zh')">繁體中文</button>
+      </div>
+      <div id="readmeContentEn" class="readme-body"><h1 style="font-size:20px; font-weight:800; color:#F3F4F6; margin-bottom:12px;">
           S32K144W Capacitive Touch Sensing Reference Implementation (CVD &amp; Rule-Based Classifier)
         </h1>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
@@ -706,6 +662,34 @@ python tools/flash_target.py
 # 4. Launch FreeMASTER Dashboard
 run_freemaster.bat</div>
 
+        <h2 class="readme-h2">🎬 Live Demonstration Videos</h2>
+        <div style="overflow-x:auto;">
+          <table class="readme-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Hardware Touch on EVB (SW7 CVD Pad)</th>
+                <th style="text-align:center;">Web Oscilloscope &amp; Dashboard Operation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">
+                  <a href="https://youtube.com/shorts/WTYWGVHzmZY" target="_blank" rel="noopener">
+                    <img src="https://img.youtube.com/vi/WTYWGVHzmZY/hqdefault.jpg" alt="EVB Touch Demo" style="max-width:280px; width:100%; border-radius:8px; border:1px solid rgba(14,175,224,0.3);">
+                  </a>
+                  <div style="margin-top:6px;"><a href="https://youtube.com/shorts/WTYWGVHzmZY" target="_blank" rel="noopener" style="color:#0EAFE0; font-weight:600; text-decoration:none;">▶ Watch EVB Touch Demo (Shorts)</a></div>
+                </td>
+                <td style="text-align:center;">
+                  <a href="https://youtu.be/AEYZ1T0ijv8" target="_blank" rel="noopener">
+                    <img src="https://img.youtube.com/vi/AEYZ1T0ijv8/hqdefault.jpg" alt="Web Scope Demo" style="max-width:280px; width:100%; border-radius:8px; border:1px solid rgba(14,175,224,0.3);">
+                  </a>
+                  <div style="margin-top:6px;"><a href="https://youtu.be/AEYZ1T0ijv8" target="_blank" rel="noopener" style="color:#0EAFE0; font-weight:600; text-decoration:none;">▶ Watch Web Scope Demo (YouTube)</a></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <h2 class="readme-h2">📚 References &amp; Technical Standards</h2>
         <ol class="readme-ol">
           <li>S. M. Hong et al., "Real-Time Defect Detection of Capacitive Touch Pads for Hands-Off Detection in ADAS," <em>Applied Sciences</em>, vol. 16, no. 4, 2026.</li>
@@ -714,12 +698,8 @@ run_freemaster.bat</div>
           <li>B. Davison, "mTouch™ Sensing Solution Acquisition Methods — CVD," Microchip AN1478, 2012.</li>
           <li>NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
         </ol>
-        <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p>
-      </div>
-
-      <!-- ZH README Content -->
-      <div id="readmeContentZh" class="readme-body" style="display:none;">
-        <h1 style="font-size:20px; font-weight:800; color:#F3F4F6; margin-bottom:12px;">
+        <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p></div>
+      <div id="readmeContentZh" class="readme-body" style="display:none;"><h1 style="font-size:20px; font-weight:800; color:#F3F4F6; margin-bottom:12px;">
           S32K144W 電容觸控演算法參考實作 (CVD &amp; 規則式包絡分類器)
         </h1>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
@@ -800,6 +780,34 @@ python tools/flash_target.py
 # 4. 一鍵啟動 FreeMASTER 儀表板
 run_freemaster.bat</div>
 
+        <h2 class="readme-h2">🎬 實機展示影片 (Live Demonstration Videos)</h2>
+        <div style="overflow-x:auto;">
+          <table class="readme-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">實體評估板觸控示範 (SW7 CVD 電極)</th>
+                <th style="text-align:center;">即時網頁動態示波器儀表板操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">
+                  <a href="https://youtube.com/shorts/WTYWGVHzmZY" target="_blank" rel="noopener">
+                    <img src="https://img.youtube.com/vi/WTYWGVHzmZY/hqdefault.jpg" alt="EVB 觸控實機展示" style="max-width:280px; width:100%; border-radius:8px; border:1px solid rgba(14,175,224,0.3);">
+                  </a>
+                  <div style="margin-top:6px;"><a href="https://youtube.com/shorts/WTYWGVHzmZY" target="_blank" rel="noopener" style="color:#0EAFE0; font-weight:600; text-decoration:none;">▶ 點擊觀看 EVB 觸控短片 (Shorts)</a></div>
+                </td>
+                <td style="text-align:center;">
+                  <a href="https://youtu.be/AEYZ1T0ijv8" target="_blank" rel="noopener">
+                    <img src="https://img.youtube.com/vi/AEYZ1T0ijv8/hqdefault.jpg" alt="網頁儀表板展示" style="max-width:280px; width:100%; border-radius:8px; border:1px solid rgba(14,175,224,0.3);">
+                  </a>
+                  <div style="margin-top:6px;"><a href="https://youtu.be/AEYZ1T0ijv8" target="_blank" rel="noopener" style="color:#0EAFE0; font-weight:600; text-decoration:none;">▶ 點擊觀看網頁儀表板展示 (YouTube)</a></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <h2 class="readme-h2">📚 參考文獻與技術規範</h2>
         <ol class="readme-ol">
           <li>S. M. Hong et al., "Real-Time Defect Detection of Capacitive Touch Pads for HOD in ADAS," <em>Applied Sciences</em>, vol. 16, no. 4, 2026.</li>
@@ -808,107 +816,69 @@ run_freemaster.bat</div>
           <li>B. Davison, "mTouch™ Sensing Solution Acquisition Methods — CVD," Microchip AN1478, 2012.</li>
           <li>NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
         </ol>
-        <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p>
-      </div>
+        <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p></div>
     </div>
-  </div>
+  </details>
 
-  <!-- Interactive Plain Language Technical Glossary Floating Modal -->
-  <div id="glossaryModal" class="glossary-modal" style="display: none;">
-    <div class="glossary-header">
-      <div class="glossary-badge" id="glossaryBadge">FEATURE</div>
-      <div class="glossary-title" id="glossaryTitle">Term Title</div>
-    </div>
-    <div class="glossary-body">
-      <div class="glossary-section">
-        <div class="glossary-section-title">
-          <span>💡</span> <span id="glossaryPlainLabel">白話文解析</span>
-        </div>
-        <div class="glossary-text" id="glossaryPlain">Explanation...</div>
-      </div>
-      <div class="glossary-section highlight">
-        <div class="glossary-section-title">
-          <span>🎯</span> <span id="glossaryEffectLabel">對觸控感測器的核心效果</span>
-        </div>
-        <div class="glossary-text" id="glossaryEffect">Effect...</div>
-      </div>
-    </div>
-    <div class="glossary-tip">
-      <span id="glossaryHint">✦ 移開滑鼠即自動關閉視窗</span>
-    </div>
+  <!-- Glossary popover -->
+  <div id="glossaryModal" class="glossary-modal" style="display:none;">
+    <div class="g-badge" id="gBadge">FEATURE</div>
+    <div class="g-title" id="gTitle">Term</div>
+    <div class="g-sec"><div class="g-sec-t">💡 <span id="gPlainLabel"></span></div><div class="g-text" id="gPlain"></div></div>
+    <div class="g-sec hl"><div class="g-sec-t">🎯 <span id="gEffectLabel"></span></div><div class="g-text" id="gEffect"></div></div>
+    <div class="g-tip" id="gHint"></div>
   </div>
+  <div class="toast" id="toast"></div>
 
   <script>
+    /* ═══════════════════════ Config ═══════════════════════ */
     const MAX_POINTS = 100;
-    let isPaused = false;
-    let isSimMode = false;
-    let simCycle = 0;
-    let ws = null;
-    let rpcId = 1;
+    const FRAME_US = 15000;
+    const TRIG = 0.64, REL = 0.38;
+    const VARS = ['g_touch_active','dynamic_delta','kalman_x_est','baseline_val','raw_diff','confidence','predicted_class','g_exec_time_us','g_heartbeat_state','g_cycle_counter','g_board_online','dta_threshold'];
+
+    let isPaused = false, isSimMode = false;
+    let ws = null, rpcId = 1;
     let currentLang = localStorage.getItem('touch_demo_lang') || 'zh';
+    let lastCycleCounter = -1, lastPacketTimestamp = 0, isBoardOnline = false;
 
-    let lastCycleCounter = -1;
-    let lastPacketTimestamp = 0;
-    let isBoardOnline = false;
-
+    /* ═══════════════════════ i18n ═══════════════════════ */
     const i18n = {
       en: {
-        pageTitle: "Touch Sensing Demo",
-        brandTitle: "Touch Sensing Demo",
-        subTitle: "XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine",
-        boardConnected: "● Board Online (COM5 @ 115200)",
-        boardDisconnected: "⚠️ Board Disconnected / Offline (COM5)",
-        heartbeatActive: "MCU Pulse (0.1s ON)",
-        heartbeatIdle: "MCU Wait (0.9s OFF)",
-        heartbeatOffline: "MCU Heartbeat: Offline",
-        connConnecting: "Connecting (8090)...",
-        connConnected: "Connected (8090)",
-        connDisconnected: "Disconnected (Reconnecting...)",
-        scopeTitle: "Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)",
-        rollingWindowText: "Rolling Window: 100 Samples (1.5s Trace)",
-        pauseScope: "Pause Scope",
-        resumeScope: "Resume Scope",
-        resetBtn: "Reset Axis",
-        toggleDemo: "Toggle Demo Mode",
-        useHardware: "Use Hardware (COM5)",
-        decisionTitle: "Hardware Touch Decision",
-        statusIdle: "IDLE / UNTOUCHED (RED LED)",
-        statusTouched: "TOUCH CONFIRMED (GREEN LED)",
-        statusWater: "WATER DROPLET REJECTED",
-        statusBoardOffline: "⚠️ BOARD OFFLINE / DISCONNECTED (WAITING...)",
-        classIdle: "CLASS: IDLE",
-        classBare: "CLASS: BARE FINGER",
-        classWater: "CLASS: WATER DROPLET",
-        classOffline: "STATUS: OFFLINE",
-        metricsTitle: "Algorithm Metrics",
-        lblDelta: "Net Shift Δdyn:",
-        lblKalman: "Kalman Filter xest:",
-        lblBaseline: "Dynamic Baseline:",
-        lblRaw: "Raw Differential ΔD:",
-        lblDta: "DTA Threshold:",
-        lblConf: "TinyML Confidence:",
-        lblExec: "MCU Execution Time:",
-        lblSafety: "Real-Time Safety Headroom:",
-        valSafety: "< 15,000 μs (98.6% Headroom)",
-        lblHeartbeat: "MCU Heartbeat (0.1s/0.9s):",
-        hbActiveText: "● PULSE ON (0.1s)",
-        hbIdleText: "○ IDLE OFF (0.9s)",
-        hbOfflineText: "✖ OFFLINE (NO LINK)",
-        lblLeds: "Hardware Board LEDs:",
-        ledIdleBlueOn: "🔴 RED: ON | 🔵 BLUE: ON",
-        ledIdleBlueOff: "🔴 RED: ON | ⚫ BLUE: OFF",
-        ledPressBlueOn: "🟢 GREEN: ON | 🔵 BLUE: ON",
-        ledPressBlueOff: "🟢 GREEN: ON | ⚫ BLUE: OFF",
-        ledBoardOffline: "⚫ BOARD POWER OFF / DISCONNECTED (ALL LEDS OFF)",
-        langBtnText: "English",
-        chartTraceDelta: "Net Dynamic Shift (Delta)",
-        chartTraceRaw: "Raw CVD Diff (Delta D)",
-        chartTraceKalman: "Kalman Estimate (x_est)",
-        chartTraceBaseline: "Asymmetric Baseline",
-        metricsHelpHint: "Hover terms for plain guide",
-        glossaryPlainLabel: "Plain-Language Guide",
-        glossaryEffectLabel: "Effect on Touch Sensor",
-        glossaryHint: "✦ Move cursor away to close",
+        pageTitle: 'Touch Sensing Demo',
+        brandTitle: 'Touch Sensing Demo',
+        subTitle: 'XS32K14WEVB-Q064 · Automotive bipolar differential CVD touch engine',
+        modeHw: 'Hardware', modeDemo: 'Demo',
+        boardConnected: 'Board online · COM5', boardDisconnected: 'Board offline · COM5',
+        connConnecting: 'Connecting (8090)…', connDisconnected: 'Link lost · reconnecting…', simConnected: 'Demo mode (simulated)',
+        hbOn: 'Heartbeat ON', hbOff: 'Heartbeat', hbOffline: 'Heartbeat offline',
+        stageTitle: 'Live touch electrode · SW7 (15×15 mm Cu)',
+        hudDelta: 'NET SHIFT Δdyn', hudHold: 'HOLD', hudCount: 'TOUCHES', hudConf: 'CONFIDENCE', hudExec: 'EXEC',
+        cls0: 'Idle', cls1: 'Bare finger', cls2: 'Glove / Acrylic', cls3: 'Water', cls4: 'Edge swipe',
+        vIdle: 'Ready — no touch', vApproach: 'Finger approaching…', vTouch: 'Touch confirmed',
+        vGlove: 'Touch confirmed · glove', vWater: 'Water rejected', vSwipe: 'Edge graze rejected', vOffline: 'Board offline',
+        subIdle: 'Baseline tracking ambient drift', subApproach: 'Baseline frozen · waiting for confidence',
+        subOffline: 'Waiting for S32K144W telemetry on COM5…',
+        subWater: 'Low envelope confidence — no false trigger', subSwipe: 'Short, low-confidence envelope — ignored',
+        tipHw: 'Touch the SW7 pad on the EVB', tipDemo: 'Press & hold the pad to touch',
+        scAuto: '▶ Auto loop', scGlove: '🧤 Glove', scWater: '💧 Water', scSwipe: '↔ Edge swipe',
+        decisionTitle: 'Decision engine', hoverHint: '💡 Hover terms for a plain guide',
+        lgTrigger: 'Trigger ≥ 0.64', lgRelease: 'Release ≤ 0.38', lgNote: 'Dual-threshold hysteresis prevents chattering near the edge.',
+        meterTitle: 'Signal vs. threshold (log scale)',
+        evbTitle: 'EVB LED mirror', ledRed: 'RED', ledRedD: 'Standby', ledGreen: 'GREEN', ledGreenD: 'Touch', ledBlue: 'BLUE', ledBlueD: '0.1 s / 0.9 s',
+        kExec: 'Exec time', kLoad: 'CPU load', kLast: 'Last press',
+        pipeTitle: 'Signal chain · every 15 ms frame',
+        nRaw: 'Bipolar CVD ΔD', nRawD: 'VB − VA, ~2× gain', nMfp: 'Spread-spectrum burst', nMfpD: 'LFSR delay hop {15,23,31}',
+        nKal: 'Trimmed mean → Kalman', nBase: 'Dynamic baseline', nBaseD: '4-zone asymmetric', nCls: 'Envelope classifier', nClsD: '4 features → confidence',
+        nDec: 'Decision', nDecD: 'Hysteresis 0.64 / 0.38', decTouch: 'TOUCH', decIdle: 'IDLE', decReject: 'REJECT',
+        scopeTitle: 'Real-time oscilloscope (66.7 Hz)', rollingWindowText: 'Rolling 100 samples (1.5 s) · shaded = touch',
+        pause: 'Pause', resume: 'Resume', clear: 'Clear',
+        logTitle: 'Touch events', logClear: 'Clear', logEmpty: 'No events yet — touch the pad',
+        evTouch: 'Touch', evRelease: 'Released', evWater: 'Water rejected', evSwipe: 'Edge swipe rejected', evOnline: 'Board online', evOffline: 'Board offline',
+        docsTitle: 'Project documentation',
+        traceDelta: 'Δdyn (net shift)', traceRaw: 'Raw ΔD', traceKalman: 'Kalman x_est', traceBase: 'Baseline', traceTh: 'DTA threshold',
+        hwOnly: 'Hardware mode: touch the physical SW7 pad — or switch to Demo.',
+        glossaryPlainLabel: 'Plain-language guide', glossaryEffectLabel: 'Effect on the touch sensor', glossaryHint: '✦ Move cursor away to close',
         glossary: {
           cvd: {
             title: "CVD (Capacitive Voltage Divider)",
@@ -1018,62 +988,40 @@ run_freemaster.bat</div>
         }
       },
       zh: {
-        pageTitle: "Touch Sensing Demo - 觸控感應即時示波器",
-        brandTitle: "Touch Sensing Demo",
-        subTitle: "XS32K14WEVB-Q064 車規級雙極性差動 CVD 電容觸控引擎",
-        boardConnected: "● 開發板已連線 (COM5 @ 115200)",
-        boardDisconnected: "⚠️ 開發板已斷線 / 斷電 (COM5)",
-        heartbeatActive: "MCU 實體心跳 (亮 0.1s)",
-        heartbeatIdle: "MCU 實體心跳 (滅 0.9s)",
-        heartbeatOffline: "MCU 實體心跳: 離線",
-        connConnecting: "連線中 (8090)...",
-        connConnected: "已連線 (8090)",
-        connDisconnected: "連線中斷 (重新連線中...)",
-        scopeTitle: "即時多軌觸控示波器 (66.7 Hz / 15.0 ms 訊框硬體精確同步)",
-        rollingWindowText: "滑動訊窗: 100 樣本 (1.5 秒即時歷程)",
-        pauseScope: "暫停示波器",
-        resumeScope: "繼續示波器",
-        resetBtn: "重設座標軸",
-        toggleDemo: "切換示範模式",
-        useHardware: "使用實體硬體 (COM5)",
-        decisionTitle: "硬體觸控決策",
-        statusIdle: "待機靜止無按壓 (紅燈亮)",
-        statusTouched: "有效觸控確認 (綠燈亮)",
-        statusWater: "水滴抗擾拒斥 (無誤觸)",
-        statusBoardOffline: "⚠️ 開發板已斷電或斷線 (等待重新連線...)",
-        classIdle: "類別: 待機",
-        classBare: "類別: 裸手按壓",
-        classWater: "類別: 水滴干擾",
-        classOffline: "狀態: 離線中",
-        metricsTitle: "演算法核心指標",
-        lblDelta: "淨動態位移 Δdyn:",
-        lblKalman: "卡爾曼濾波估計 xest:",
-        lblBaseline: "動態基線值:",
-        lblRaw: "原始差動值 ΔD:",
-        lblDta: "動態調整門檻 DTA:",
-        lblConf: "TinyML 置信度:",
-        lblExec: "MCU 運算耗時:",
-        lblSafety: "即時安全裕度:",
-        valSafety: "< 15,000 μs (98.6% 裕度)",
-        lblHeartbeat: "MCU 心跳 (亮0.1s 暗0.9s):",
-        hbActiveText: "● 脈衝亮 (0.1秒)",
-        hbIdleText: "○ 待機滅 (0.9秒)",
-        hbOfflineText: "✖ 離線 (無通訊)",
-        lblLeds: "板載 LED 燈號:",
-        ledIdleBlueOn: "🔴 紅燈: 亮 (待機) | 🔵 藍心跳: 亮",
-        ledIdleBlueOff: "🔴 紅燈: 亮 (待機) | ⚫ 藍心跳: 滅",
-        ledPressBlueOn: "🟢 綠燈: 亮 (按壓) | 🔵 藍心跳: 亮",
-        ledPressBlueOff: "🟢 綠燈: 亮 (按壓) | ⚫ 藍心跳: 滅",
-        ledBoardOffline: "⚫ 開發板未供電 / 斷線 (LED 全熄)",
-        langBtnText: "繁體中文",
-        chartTraceDelta: "淨動態位移 (Δdyn)",
-        chartTraceRaw: "原始 CVD 差動值 (ΔD)",
-        chartTraceKalman: "卡爾曼估計值 (x_est)",
-        chartTraceBaseline: "非對稱自適應基線",
-        metricsHelpHint: "懸停名詞查看白話解析",
-        glossaryPlainLabel: "白話文解析",
-        glossaryEffectLabel: "對觸控感測器的核心效果",
-        glossaryHint: "✦ 移開滑鼠即自動關閉視窗",
+        pageTitle: 'Touch Sensing Demo - 電容觸控即時展示',
+        brandTitle: 'Touch Sensing Demo',
+        subTitle: 'XS32K14WEVB-Q064 · 車規級雙極性差動 CVD 電容觸控引擎',
+        modeHw: '實體硬體', modeDemo: '示範模式',
+        boardConnected: '開發板已連線 · COM5', boardDisconnected: '開發板離線 · COM5',
+        connConnecting: '連線中 (8090)…', connDisconnected: '連線中斷 · 重新連線中…', simConnected: '示範模式 (模擬資料)',
+        hbOn: '心跳 亮', hbOff: 'MCU 心跳', hbOffline: '心跳 離線',
+        stageTitle: '即時觸控電極 · SW7 (15×15 mm 銅箔)',
+        hudDelta: '淨動態位移 Δdyn', hudHold: '按住', hudCount: '觸控次數', hudConf: '置信度', hudExec: '耗時',
+        cls0: '待機', cls1: '裸手', cls2: '手套 / 壓克力', cls3: '水滴', cls4: '邊緣滑過',
+        vIdle: '待命中 — 無觸控', vApproach: '手指接近中…', vTouch: '觸控確認',
+        vGlove: '觸控確認 · 手套', vWater: '水滴干擾已拒斥', vSwipe: '邊緣擦過已拒斥', vOffline: '開發板離線',
+        subIdle: '基線持續追蹤環境漂移', subApproach: '基線凍結 · 等待置信度成立',
+        subOffline: '等待 S32K144W 由 COM5 傳送遙測資料…',
+        subWater: '包絡置信度低 — 不誤觸發', subSwipe: '短暫低置信度包絡 — 忽略',
+        tipHw: '請觸摸 EVB 上的 SW7 銅箔', tipDemo: '按住中央電極即可模擬觸控',
+        scAuto: '▶ 自動循環', scGlove: '🧤 手套', scWater: '💧 水滴', scSwipe: '↔ 邊緣滑過',
+        decisionTitle: '觸控決策引擎', hoverHint: '💡 懸停名詞查看白話解析',
+        lgTrigger: '觸發 ≥ 0.64', lgRelease: '釋放 ≤ 0.38', lgNote: '雙門檻遲滯，避免手指在邊界徘徊時反覆開關。',
+        meterTitle: '訊號 vs. 門檻 (對數刻度)',
+        evbTitle: 'EVB 燈號同步', ledRed: '紅燈', ledRedD: '待機', ledGreen: '綠燈', ledGreenD: '觸控', ledBlue: '藍燈', ledBlueD: '亮 0.1s / 滅 0.9s',
+        kExec: '運算耗時', kLoad: 'CPU 負載', kLast: '上次按壓',
+        pipeTitle: '訊號處理鏈 · 每 15 ms 訊框',
+        nRaw: '雙極性 CVD ΔD', nRawD: 'VB − VA，約 2× 增益', nMfp: '展頻叢集採樣', nMfpD: 'LFSR 延遲跳頻 {15,23,31}',
+        nKal: '截尾平均 → 卡爾曼', nBase: '動態基線', nBaseD: '四區段非對稱追蹤', nCls: '包絡特徵分類器', nClsD: '4 特徵 → 置信度',
+        nDec: '決策', nDecD: '遲滯 0.64 / 0.38', decTouch: '觸控', decIdle: '待機', decReject: '拒斥',
+        scopeTitle: '即時示波器 (66.7 Hz)', rollingWindowText: '滑動 100 樣本 (1.5 秒) · 陰影 = 觸控中',
+        pause: '暫停', resume: '繼續', clear: '清除',
+        logTitle: '觸控事件', logClear: '清除', logEmpty: '尚無事件 — 請觸摸電極',
+        evTouch: '觸控', evRelease: '釋放', evWater: '水滴拒斥', evSwipe: '邊緣滑過拒斥', evOnline: '開發板上線', evOffline: '開發板離線',
+        docsTitle: '專案文件',
+        traceDelta: 'Δdyn 淨位移', traceRaw: '原始 ΔD', traceKalman: '卡爾曼 x_est', traceBase: '動態基線', traceTh: 'DTA 門檻',
+        hwOnly: '實體硬體模式：請觸摸 EVB 上的 SW7，或切換到示範模式。',
+        glossaryPlainLabel: '白話文解析', glossaryEffectLabel: '對觸控感測器的核心效果', glossaryHint: '✦ 移開滑鼠即自動關閉',
         glossary: {
           cvd: {
             title: "CVD (Capacitive Voltage Divider) 電容分壓法",
@@ -1183,567 +1131,436 @@ run_freemaster.bat</div>
         }
       }
     };
+    // Extra glossary entries for new UI blocks (content taken from project README)
+    Object.assign(i18n.en.glossary, {
+      mfp: { title: 'Multi-Frequency Spread-Spectrum Burst (MFP)', category: 'EMC Robustness', badgeColor: 'var(--nxp-purple)',
+        plain: 'Each frame takes a 9-sample burst. A 16-bit Galois LFSR (0xB400) randomly hops the sample delay across coprime counts {15, 23, 31} cycles.',
+        effect: 'Prevents the sampling from locking onto periodic EMI harmonics; the 9 samples are then cleaned by an alpha-trimmed mean before Kalman filtering.' }
+    });
+    Object.assign(i18n.zh.glossary, {
+      mfp: { title: 'MFP 多頻擴頻叢集採樣', category: 'EMC 抗擾', badgeColor: 'var(--nxp-purple)',
+        plain: '每個訊框做 9 點叢集採樣，以 16 位元 Galois LFSR (0xB400) 在互質延遲 {15, 23, 31} 週期間隨機跳頻。',
+        effect: '避免採樣與週期性 EMI 諧波同步鎖定；9 點樣本再經 Alpha-trimmed mean 剔除離群值後送入卡爾曼濾波。' }
+    });
 
-    // Chart Setup
-    const ctx = document.getElementById('scopeCanvas').getContext('2d');
-    const scopeChart = new Chart(ctx, {
+    const T = () => i18n[currentLang];
+    const $ = id => document.getElementById(id);
+
+    /* ═══════════════════════ Scope ═══════════════════════ */
+    const touchHist = Array(MAX_POINTS).fill(0);   // 0 none, 1 touch, 3 water, 4 swipe
+    const shadePlugin = {
+      id: 'touchShade',
+      beforeDatasetsDraw(chart) {
+        const { ctx, chartArea: a, scales: { x } } = chart;
+        if (!a) return;
+        const w = (a.right - a.left) / (MAX_POINTS - 1);
+        ctx.save();
+        for (let i = 0; i < MAX_POINTS; i++) {
+          const s = touchHist[i]; if (!s) continue;
+          ctx.fillStyle = s === 1 ? 'rgba(52,211,153,0.10)' : s === 3 ? 'rgba(251,191,36,0.10)' : 'rgba(167,139,250,0.10)';
+          ctx.fillRect(x.getPixelForValue(i) - w / 2, a.top, w + 0.5, a.bottom - a.top);
+        }
+        ctx.restore();
+      }
+    };
+    const mk = (v) => Array(MAX_POINTS).fill(v);
+    // Fallback: keep the touch UI alive if the Chart.js CDN is unreachable (offline demo PCs)
+    if (typeof Chart === 'undefined') {
+      window.Chart = function (_c, cfg) { this.data = cfg.data; this.update = () => {}; };
+      document.querySelector('.scope-box').innerHTML = '<div style="height:100%;display:grid;place-items:center;color:#56627A;font-size:13px;">Chart.js not loaded (offline) — scope disabled, touch UI still live.</div>';
+    }
+    const scopeChart = new Chart($('scopeCanvas')?.getContext('2d'), {
       type: 'line',
       data: {
-        labels: Array(MAX_POINTS).fill(''),
+        labels: Array.from({ length: MAX_POINTS }, (_, i) => i),
         datasets: [
-          {
-            label: i18n[currentLang].chartTraceDelta,
-            borderColor: '#8B5CF6',
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-            borderWidth: 2.5,
-            pointRadius: 0,
-            fill: true,
-            tension: 0.25,
-            data: Array(MAX_POINTS).fill(0)
-          },
-          {
-            label: i18n[currentLang].chartTraceRaw,
-            borderColor: '#0EAFE0',
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0.1,
-            data: Array(MAX_POINTS).fill(185)
-          },
-          {
-            label: i18n[currentLang].chartTraceKalman,
-            borderColor: '#10B981',
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2,
-            data: Array(MAX_POINTS).fill(185)
-          },
-          {
-            label: i18n[currentLang].chartTraceBaseline,
-            borderColor: '#FCA600',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            pointRadius: 0,
-            tension: 0,
-            data: Array(MAX_POINTS).fill(185)
-          }
+          { label: 'Δdyn', borderColor: '#A78BFA', backgroundColor: 'rgba(139,92,246,0.14)', borderWidth: 2.5, pointRadius: 0, fill: 'origin', tension: .25, data: mk(0) },
+          { label: 'ΔD', borderColor: 'rgba(14,175,224,0.7)', borderWidth: 1.2, pointRadius: 0, tension: .1, data: mk(185) },
+          { label: 'x_est', borderColor: '#34D399', borderWidth: 2, pointRadius: 0, tension: .2, data: mk(185) },
+          { label: 'Base', borderColor: '#FCA600', borderWidth: 1.6, borderDash: [5, 5], pointRadius: 0, data: mk(185) },
+          { label: 'DTA', borderColor: 'rgba(232,237,245,0.5)', borderWidth: 1, borderDash: [2, 4], pointRadius: 0, data: mk(48) }
         ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
-          x: {
-            display: false,
-            grid: { display: false }
-          },
-          y: {
-            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-            ticks: { color: '#9CA3AF', font: { family: 'monospace' } }
-          }
+          x: { display: false },
+          y: { grid: { color: 'rgba(148,163,184,0.08)' }, border: { display: false }, ticks: { color: '#56627A', font: { family: 'monospace', size: 11 } } }
         },
         plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              color: '#F3F4F6',
-              boxWidth: 12,
-              font: { size: 12 }
-            }
-          }
+          legend: { position: 'top', align: 'end', labels: { color: '#8A97AD', boxWidth: 10, boxHeight: 2, font: { size: 11.5 } } },
+          tooltip: { enabled: false }
         }
-      }
+      },
+      plugins: [shadePlugin]
     });
 
-    function renderOfflineState() {
-      const t = i18n[currentLang];
-      const connPill = document.getElementById('connPill');
-      const connLabel = document.getElementById('connLabel');
-      const hbPill = document.getElementById('heartbeatPill');
-      const hbLabel = document.getElementById('heartbeatLabel');
-      const valHeartbeat = document.getElementById('valHeartbeat');
-      const touchCard = document.getElementById('touchCard');
-      const touchText = document.getElementById('touchStatusText');
-      const classBadge = document.getElementById('classBadge');
-      const valLeds = document.getElementById('valLeds');
+    function pushScope(s) {
+      const d = scopeChart.data.datasets;
+      [s.delta, s.raw, s.x_est, s.base, s.dta].forEach((v, i) => { d[i].data.shift(); d[i].data.push(v); });
+      touchHist.shift();
+      touchHist.push(s.touch ? 1 : s.cls === 3 ? 3 : (s.cls === 4 && s.delta > s.dta * 0.4) ? 4 : 0);
+      scopeChart.update('none');
+    }
+    function clearScope() {
+      const d = scopeChart.data.datasets;
+      [0, 185, 185, 185, 48].forEach((v, i) => d[i].data = mk(v));
+      touchHist.fill(0); scopeChart.update('none');
+    }
 
-      connPill.className = 'conn-status disconnected';
-      connLabel.innerText = t.boardDisconnected;
+    /* ═══════════════════════ Touch stage render ═══════════════════════ */
+    const stage = $('stage'), pad = $('pad'), padWrap = $('padWrap');
+    const tr = {                   // tracker for events / counters
+      touch: 0, cls: 0, t0: 0, count: 0, lastDur: null, online: null
+    };
+    const STATE_COLOR = { idle: '--c-idle', approach: '--c-idle', touch: '--c-touch', glove: '--c-glove', water: '--c-water', swipe: '--c-swipe', offline: '--c-off' };
+    const proximity = (d) => Math.max(0, Math.min(1, Math.log10(1 + Math.max(0, d)) / Math.log10(1 + 1500)));
 
-      hbPill.className = 'heartbeat-pill offline';
-      hbLabel.innerText = t.heartbeatOffline;
-      valHeartbeat.innerText = t.hbOfflineText;
-      valHeartbeat.style.color = '#9CA3AF';
+    function setStageState(state, p) {
+      stage.dataset.state = state;
+      stage.style.setProperty('--c', `var(${STATE_COLOR[state]})`);
+      stage.style.setProperty('--p', p.toFixed(3));
+    }
+    function spawnRipple() {
+      const r = document.createElement('div');
+      r.className = 'ripple';
+      padWrap.appendChild(r);
+      setTimeout(() => r.remove(), 1200);
+    }
+    function setChips(active) {
+      document.querySelectorAll('#chips .chip').forEach(c => c.classList.toggle('on', Number(c.dataset.cls) === active));
+    }
+    function fmtSigned(v, d = 1) { return (v >= 0 ? '+' : '') + v.toFixed(d); }
 
-      touchCard.className = 'card indicator-card offline';
-      touchText.innerText = t.statusBoardOffline;
-      touchText.style.color = 'var(--nxp-orange)';
-      classBadge.className = 'badge badge-offline';
-      classBadge.innerText = t.classOffline;
+    function render(s) {
+      const t = T();
+      const now = performance.now();
 
-      valLeds.innerText = t.ledBoardOffline;
-      valLeds.style.color = 'var(--text-muted)';
+      // ---- events & counters ----
+      if (s.touch && !tr.touch) { tr.t0 = now; tr.count++; spawnRipple(); logEvent('touch', s); }
+      if (!s.touch && tr.touch) { tr.lastDur = (now - tr.t0) / 1000; logEvent('release', s, tr.lastDur); }
+      if (s.cls === 3 && tr.cls !== 3) logEvent('water', s);
+      if (s.cls === 4 && tr.cls !== 4 && !s.touch) logEvent('swipe', s);
+      tr.touch = s.touch; tr.cls = s.cls;
+
+      // ---- stage ----
+      const p = proximity(s.delta);
+      let state = 'idle', title = t.vIdle, sub = t.subIdle;
+      if (s.cls === 3) { state = 'water'; title = t.vWater; sub = t.subWater; }
+      else if (s.touch) {
+        state = s.cls === 2 ? 'glove' : 'touch';
+        title = s.cls === 2 ? t.vGlove : t.vTouch;
+        sub = `${t['cls' + (s.cls || 1)]} · ${Math.round(s.conf * 100)}% · ${((now - tr.t0) / 1000).toFixed(2)} s`;
+      }
+      else if (s.cls === 4 && s.delta > s.dta * 0.4) { state = 'swipe'; title = t.vSwipe; sub = t.subSwipe; }
+      else if (s.delta > s.dta * 0.4) { state = 'approach'; title = t.vApproach; sub = t.subApproach; }
+      setStageState(state, state === 'idle' ? Math.min(p, 0.15) : p);
+      $('verdictTitle').innerText = title;
+      $('verdictSub').innerText = sub;
+      setChips(s.touch ? (s.cls || 1) : (s.cls === 3 || s.cls === 4) ? s.cls : 0);
+      if (!pad.dataset.userPress) pad.classList.toggle('pressed', !!s.touch);
+
+      $('hudDelta').innerHTML = `${fmtSigned(s.delta)}<span class="unit">LSB</span>`;
+      $('hudConf').innerHTML = `${Math.round(s.conf * 100)}<span class="unit">%</span>`;
+      $('hudDta').innerText = s.dta.toFixed(1);
+      $('hudExec').innerText = `${s.exec} µs`;
+      $('hudHold').innerText = s.touch ? `${((now - tr.t0) / 1000).toFixed(2)} s` : '0.00 s';
+      $('hudCount').innerText = tr.count;
+
+      // ---- confidence ring ----
+      const C = 314.16;
+      $('ringVal').setAttribute('stroke-dashoffset', (C * (1 - Math.max(0, Math.min(1, s.conf)))).toFixed(1));
+      $('ringText').innerText = Math.round(s.conf * 100) + '%';
+
+      // ---- meter (log scale 1..3000) ----
+      const lp = v => Math.max(0, Math.min(100, Math.log10(Math.max(1, v)) / Math.log10(3000) * 100));
+      $('barFill').style.width = lp(s.delta) + '%';
+      $('markTh').style.left = lp(s.dta) + '%';
+      $('markApproach').style.left = lp(s.dta * 0.4) + '%';
+      $('meterVal').innerText = `${fmtSigned(s.delta)} LSB`;
+
+      // ---- LEDs ----
+      $('ledR').classList.toggle('on', !s.touch);
+      $('ledG').classList.toggle('on', !!s.touch);
+      $('ledB').classList.toggle('on', !!s.hb);
+
+      // ---- KPIs ----
+      $('kExec').innerText = `${s.exec} µs`;
+      $('kLoad').innerText = `${(s.exec / FRAME_US * 100).toFixed(1)}%`;
+      $('kLast').innerText = tr.lastDur == null ? '—' : `${tr.lastDur.toFixed(2)} s`;
+
+      // ---- pipeline ----
+      $('vRaw').innerText = s.raw;
+      $('vKal').innerText = s.x_est.toFixed(1);
+      $('vBase').innerText = s.base.toFixed(1);
+      $('vDelta').innerText = fmtSigned(s.delta);
+      $('vCls').innerText = `${t['cls' + s.cls] || s.cls} · ${Math.round(s.conf * 100)}%`;
+      $('vDec').innerText = s.touch ? t.decTouch : (s.cls === 3 || s.cls === 4) ? t.decReject : t.decIdle;
+      $('cycleInfo').innerText = `cycle ${s.cycle}`;
+      const hot = !!s.touch, warn = s.cls === 3 || (s.cls === 4 && !s.touch);
+      ['nDelta', 'nCls', 'nDec'].forEach(id => { $(id).classList.toggle('hot', hot); $(id).classList.toggle('warn', warn && !hot); });
+
+      // ---- header ----
+      const hbPill = $('hbPill');
+      hbPill.className = 'pill hb' + (s.hb ? ' on' : '');
+      $('hbLabel').innerText = s.hb ? t.hbOn : t.hbOff;
+      $('connPill').className = 'pill ok';
+      $('connLabel').innerText = isSimMode ? t.simConnected : t.boardConnected;
+      $('pipeline').classList.remove('offline-mode');
+
+      if (tr.online !== true) { if (tr.online === false) logEvent('online'); tr.online = true; }
+      pushScope(s);
+    }
+
+    function renderOffline(linkLost = false) {
+      const t = T();
+      if (tr.touch) { tr.touch = 0; }
+      setStageState('offline', 0);
+      $('verdictTitle').innerText = t.vOffline;
+      $('verdictSub').innerText = t.subOffline;
+      setChips(-1);
+      pad.classList.remove('pressed');
+      ['ledR', 'ledG', 'ledB'].forEach(id => $(id).classList.remove('on'));
+      $('hbPill').className = 'pill hb off';
+      $('hbLabel').innerText = t.hbOffline;
+      $('connPill').className = 'pill bad';
+      $('connLabel').innerText = linkLost ? t.connDisconnected : (ws && ws.readyState === 1 ? t.boardDisconnected : t.connConnecting);
+      $('pipeline').classList.add('offline-mode');
+      ['nDelta', 'nCls', 'nDec'].forEach(id => $(id).classList.remove('hot', 'warn'));
+      if (tr.online === true) { logEvent('offline'); }
+      tr.online = false;
+    }
+
+    /* ═══════════════════════ Event log ═══════════════════════ */
+    const logEl = $('log');
+    function renderLogEmpty() { if (!logEl.children.length) logEl.innerHTML = `<li class="empty">${T().logEmpty}</li>`; }
+    function clearLog() { logEl.innerHTML = ''; renderLogEmpty(); }
+    function logEvent(kind, s, dur) {
+      const t = T();
+      const map = {
+        touch:   ['#34D399', t.evTouch,   s ? `${t['cls' + (s.cls || 1)]} · Δ ${s.delta.toFixed(0)} LSB · ${Math.round(s.conf * 100)}%` : ''],
+        release: ['#64748B', t.evRelease, dur != null ? `${t.hudHold} ${dur.toFixed(2)} s` : ''],
+        water:   ['#FBBF24', t.evWater,   s ? `conf ${Math.round(s.conf * 100)}%` : ''],
+        swipe:   ['#A78BFA', t.evSwipe,   s ? `conf ${Math.round(s.conf * 100)}%` : ''],
+        online:  ['#0EAFE0', t.evOnline,  ''],
+        offline: ['#EF4444', t.evOffline, '']
+      };
+      const [color, title, detail] = map[kind];
+      const empty = logEl.querySelector('.empty'); if (empty) empty.remove();
+      const li = document.createElement('li');
+      const tm = new Date().toLocaleTimeString(currentLang === 'zh' ? 'zh-TW' : 'en-US', { hour12: false });
+      li.innerHTML = `<span class="m" style="background:${color}; box-shadow:0 0 8px ${color}"></span><div><div style="font-weight:600">${title}</div>${detail ? `<div class="s">${detail}</div>` : ''}</div><span class="tm">${tm}</span>`;
+      logEl.prepend(li);
+      while (logEl.children.length > 40) logEl.lastChild.remove();
+    }
+
+    /* ═══════════════════════ Data parsing ═══════════════════════ */
+    function updateDashboard(vars) {
+      if (isPaused) return;
+      const s = { touch: 0, delta: 0, x_est: 185, base: 185, raw: 185, conf: 0, cls: 0, exec: 0, hb: 0, cycle: -1, online: -1, dta: 48 };
+      const key = { g_touch_active: 'touch', dynamic_delta: 'delta', kalman_x_est: 'x_est', baseline_val: 'base', raw_diff: 'raw', confidence: 'conf', predicted_class: 'cls', g_exec_time_us: 'exec', g_heartbeat_state: 'hb', g_cycle_counter: 'cycle', g_board_online: 'online', dta_threshold: 'dta' };
+      for (const v of vars) {
+        if (v && v.status !== false && v.value !== undefined && key[v.name]) {
+          const n = Number(v.value);
+          if (!Number.isNaN(n)) s[key[v.name]] = n;
+        }
+      }
+      if (!(s.dta > 0 && s.dta < 1000)) s.dta = 48;     // guard against unset/random mock memory
+      const now = Date.now();
+      if (s.cycle !== -1 && s.cycle !== lastCycleCounter) { lastCycleCounter = s.cycle; lastPacketTimestamp = now; }
+      isBoardOnline = isSimMode ? true : ((lastPacketTimestamp > 0) && (now - lastPacketTimestamp < 500) && s.online !== 0);
+      if (!isBoardOnline) { renderOffline(); return; }
+      render(s);
+    }
+
+    /* ═══════════════════════ WebSocket (FreeMASTER Lite JSON-RPC) ═══════════════════════ */
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = location.host || 'localhost:8090';
+      try { ws = new WebSocket(`${proto}//${host}`); } catch (e) { setTimeout(connectWS, 1500); return; }
+      ws.onopen = () => {
+        if (!isSimMode) $('connLabel').innerText = T().boardDisconnected;
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id: rpcId++, method: 'StartComm', params: ['S32K144W_OpenSDA'] }));
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const res = JSON.parse(ev.data);
+          if (!isSimMode && res.result && Array.isArray(res.result.data)) updateDashboard(res.result.data);
+        } catch (e) {}
+      };
+      ws.onclose = () => { isBoardOnline = false; if (!isSimMode) renderOffline(true); setTimeout(connectWS, 1500); };
+      ws.onerror = () => ws.close();
+    }
+
+    /* ═══════════════════════ Demo simulator (interactive) ═══════════════════════ */
+    const sim = { cycle: 0, delta: 0, conf: 0.02, touch: 0, auto: true, autoT0: performance.now(), press: false, scen: null, scenStart: 0, scenUntil: 0 };
+    function runScenario(name, ms) {
+      if (!isSimMode) { toast(T().hwOnly); return; }
+      sim.scen = name; sim.scenStart = performance.now(); sim.scenUntil = sim.scenStart + ms;
+    }
+    function toggleAuto() {
+      if (!isSimMode) { toast(T().hwOnly); return; }
+      sim.auto = !sim.auto; sim.autoT0 = performance.now();
+      $('scAuto').classList.toggle('active', sim.auto);
+    }
+    function simStep() {
+      sim.cycle++;
+      const now = performance.now();
+      let scen = null;
+      if (sim.press) scen = 'bare';
+      else if (sim.scen && now < sim.scenUntil) scen = sim.scen;
+      else { sim.scen = null; if (sim.auto) { const ph = ((now - sim.autoT0) / 1000) % 5; if (ph > 1.5 && ph < 3.2) scen = 'bare'; } }
+
+      let target = 0, cls = 0;
+      switch (scen) {
+        case 'bare':  target = 1450 + 20 * Math.sin(sim.cycle * .25); cls = 1; break;
+        case 'glove': target = 560 + 12 * Math.sin(sim.cycle * .2); cls = 2; break;
+        case 'water': target = 150 + 55 * Math.sin(sim.cycle * .9) + (Math.random() - .5) * 70; cls = 3; break;
+        case 'swipe': { const k = (now - sim.scenStart) / (sim.scenUntil - sim.scenStart); target = 420 * Math.sin(Math.PI * Math.min(1, k)); cls = 4; } break;
+      }
+      sim.delta += (target - sim.delta) * (target > sim.delta ? 0.45 : 0.3);
+      const genuine = scen === 'bare' || scen === 'glove';
+      sim.conf = genuine ? Math.min(0.98, sim.conf + 0.12) : Math.max(0.02, sim.conf - 0.1);
+      if (scen === 'water' || scen === 'swipe') sim.conf = Math.min(sim.conf, 0.14);
+      if (!sim.touch && sim.conf >= TRIG && sim.delta > 48) sim.touch = 1;
+      if (sim.touch && sim.conf <= REL) sim.touch = 0;
+      if (!scen && sim.delta < 20) cls = 0;
+      else if (!scen) cls = sim.touch ? 1 : 0;
+
+      const base = 185;
+      const delta = sim.delta + 2 * Math.sin(sim.cycle * .1);
+      const x_est = base + delta;
+      updateDashboard([
+        { name: 'g_touch_active', value: sim.touch },
+        { name: 'dynamic_delta', value: delta },
+        { name: 'kalman_x_est', value: x_est },
+        { name: 'baseline_val', value: base },
+        { name: 'raw_diff', value: Math.round(x_est + (Math.random() - .5) * 6) },
+        { name: 'confidence', value: sim.conf },
+        { name: 'predicted_class', value: cls },
+        { name: 'g_exec_time_us', value: Math.round(200 + Math.random() * 12) },
+        { name: 'g_heartbeat_state', value: (Date.now() % 1000) < 100 ? 1 : 0 },
+        { name: 'g_cycle_counter', value: sim.cycle },
+        { name: 'g_board_online', value: 1 },
+        { name: 'dta_threshold', value: 48.0 }
+      ]);
+    }
+
+    // Press & hold on the virtual pad
+    function padDown(e) {
+      e.preventDefault();
+      if (!isSimMode) { toast(T().hwOnly); return; }
+      sim.press = true; pad.dataset.userPress = '1'; pad.classList.add('pressed');
+    }
+    function padUp() {
+      if (!sim.press) return;
+      sim.press = false; delete pad.dataset.userPress; pad.classList.remove('pressed');
+    }
+    pad.addEventListener('pointerdown', padDown);
+    window.addEventListener('pointerup', padUp);
+    window.addEventListener('pointercancel', padUp);
+    window.addEventListener('keydown', e => { if (e.code === 'Space' && isSimMode && !e.repeat && e.target === document.body) { e.preventDefault(); padDown(e); } });
+    window.addEventListener('keyup', e => { if (e.code === 'Space') padUp(); });
+
+    /* ═══════════════════════ Loops ═══════════════════════ */
+    setInterval(() => {               // 40 Hz poll
+      if (isPaused) return;
+      if (isSimMode) simStep();
+      else if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id: rpcId++, method: 'ReadMultipleVariables', params: [VARS] }));
+      }
+    }, 25);
+    setInterval(() => {               // offline watchdog
+      if (isPaused || isSimMode) return;
+      if (isBoardOnline && Date.now() - lastPacketTimestamp >= 500) { isBoardOnline = false; renderOffline(); }
+    }, 100);
+
+    /* ═══════════════════════ Controls ═══════════════════════ */
+    function setMode(demo) {
+      isSimMode = demo;
+      $('modeHw').classList.toggle('active', !demo);
+      $('modeDemo').classList.toggle('active', demo);
+      document.querySelectorAll('.scenarios .sbtn').forEach(b => b.disabled = !demo);
+      $('scAuto').classList.toggle('active', demo && sim.auto);
+      $('stageTip').innerText = demo ? T().tipDemo : T().tipHw;
+      if (demo) { lastPacketTimestamp = Date.now(); isBoardOnline = true; sim.autoT0 = performance.now(); }
+      else { lastPacketTimestamp = 0; isBoardOnline = false; padUp(); renderOffline(); }
+    }
+    function togglePause() { isPaused = !isPaused; $('pauseBtn').innerText = isPaused ? T().resume : T().pause; }
+    function toast(msg) {
+      const el = $('toast'); el.innerText = msg; el.classList.add('show');
+      clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+    function switchReadmeTab(lang) {
+      $('readmeContentEn').style.display = lang === 'en' ? 'block' : 'none';
+      $('readmeContentZh').style.display = lang === 'zh' ? 'block' : 'none';
+      $('tabEn').classList.toggle('active', lang === 'en');
+      $('tabZh').classList.toggle('active', lang === 'zh');
     }
 
     function applyLanguage(lang) {
-      currentLang = lang;
-      localStorage.setItem('touch_demo_lang', lang);
-      const t = i18n[lang];
-
+      currentLang = lang; localStorage.setItem('touch_demo_lang', lang);
+      const t = T();
+      document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
       document.title = t.pageTitle;
-      document.getElementById('brandTitle').innerText = t.brandTitle;
-      document.getElementById('pageSubTitle').innerText = t.subTitle;
-      document.getElementById('scopeTitle').innerText = t.scopeTitle;
-      document.getElementById('rollingWindowText').innerText = t.rollingWindowText;
-      document.getElementById('pauseBtn').innerText = isPaused ? t.resumeScope : t.pauseScope;
-      document.getElementById('resetBtn').innerText = t.resetBtn;
-      document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
-      document.getElementById('decisionTitle').innerText = t.decisionTitle;
-      document.getElementById('metricsTitle').innerText = t.metricsTitle;
-      const hintEl = document.getElementById('metricsHelpHint');
-      if (hintEl) hintEl.innerText = t.metricsHelpHint;
-      if (typeof activeGlossaryKey !== 'undefined' && activeGlossaryKey) {
-        renderGlossaryContent(activeGlossaryKey);
-      }
-
-      document.getElementById('lblDelta').innerText = t.lblDelta;
-      document.getElementById('lblKalman').innerText = t.lblKalman;
-      document.getElementById('lblBaseline').innerText = t.lblBaseline;
-      document.getElementById('lblRaw').innerText = t.lblRaw;
-      document.getElementById('lblDta').innerText = t.lblDta;
-      document.getElementById('lblConf').innerText = t.lblConf;
-      document.getElementById('lblExec').innerText = t.lblExec;
-      document.getElementById('lblSafety').innerText = t.lblSafety;
-      document.getElementById('valSafety').innerText = t.valSafety;
-      document.getElementById('lblHeartbeat').innerText = t.lblHeartbeat;
-      document.getElementById('lblLeds').innerText = t.lblLeds;
-
-      document.getElementById('langBtnText').innerText = (lang === 'zh') ? '繁體中文 → EN' : 'English → 中文';
-
-      // Update Chart Legends
-      scopeChart.data.datasets[0].label = t.chartTraceDelta;
-      scopeChart.data.datasets[1].label = t.chartTraceRaw;
-      scopeChart.data.datasets[2].label = t.chartTraceKalman;
-      scopeChart.data.datasets[3].label = t.chartTraceBaseline;
-      scopeChart.update();
-
-      // Update connection label to current state text
-      const connLabel = document.getElementById('connLabel');
-      if (document.getElementById('connPill').classList.contains('disconnected')) {
-        connLabel.innerText = t.boardDisconnected;
-      } else if (isBoardOnline) {
-        connLabel.innerText = isSimMode ? t.connConnected : t.boardConnected;
-      } else {
-        connLabel.innerText = t.connConnecting;
-      }
-
-      // Update heartbeat label to current state text
-      const hbPill = document.getElementById('heartbeatPill');
-      const hbLabel = document.getElementById('heartbeatLabel');
-      const valHeartbeat = document.getElementById('valHeartbeat');
-      if (hbPill.classList.contains('offline')) {
-        hbLabel.innerText = t.heartbeatOffline;
-        valHeartbeat.innerText = t.hbOfflineText;
-      } else if (hbPill.classList.contains('active')) {
-        hbLabel.innerText = t.heartbeatActive;
-        valHeartbeat.innerText = t.hbActiveText;
-      } else {
-        hbLabel.innerText = t.heartbeatIdle;
-        valHeartbeat.innerText = t.hbIdleText;
-      }
-
-      // Update touch status card to current state text
-      const touchCard = document.getElementById('touchCard');
-      const touchText = document.getElementById('touchStatusText');
-      const classBadge = document.getElementById('classBadge');
-      if (touchCard.classList.contains('offline')) {
-        touchText.innerText = t.statusBoardOffline;
-        classBadge.innerText = t.classOffline;
-      } else if (touchCard.classList.contains('water')) {
-        touchText.innerText = t.statusWater;
-        classBadge.innerText = t.classWater;
-      } else if (touchCard.classList.contains('touched')) {
-        touchText.innerText = t.statusTouched;
-        classBadge.innerText = t.classBare;
-      } else {
-        touchText.innerText = t.statusIdle;
-        classBadge.innerText = t.classIdle;
-      }
-
-      if (!isBoardOnline && !isSimMode) {
-        renderOfflineState();
-      }
+      document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.dataset.i18n; if (t[k] != null) el.innerText = t[k]; });
+      $('langBtn').innerText = lang === 'zh' ? '🌐 EN' : '🌐 中文';
+      $('pauseBtn').innerText = isPaused ? t.resume : t.pause;
+      $('clearBtn').innerText = t.clear;
+      $('stageTip').innerText = isSimMode ? t.tipDemo : t.tipHw;
+      const ds = scopeChart.data.datasets;
+      [t.traceDelta, t.traceRaw, t.traceKalman, t.traceBase, t.traceTh].forEach((l, i) => ds[i].label = l);
+      scopeChart.update('none');
+      switchReadmeTab(lang);
+      const empty = logEl.querySelector('.empty'); if (empty) empty.innerText = t.logEmpty;
+      if (activeGlossaryKey) renderGlossaryContent(activeGlossaryKey);
+      if (!isBoardOnline && !isSimMode) renderOffline();
     }
+    function toggleLanguage() { applyLanguage(currentLang === 'zh' ? 'en' : 'zh'); }
 
-    function toggleLanguage() {
-      applyLanguage(currentLang === 'zh' ? 'en' : 'zh');
-    }
-
-    function switchReadmeTab(lang) {
-      const enContent = document.getElementById('readmeContentEn');
-      const zhContent = document.getElementById('readmeContentZh');
-      const tabEn = document.getElementById('tabBtnEn');
-      const tabZh = document.getElementById('tabBtnZh');
-      const activeStyle = 'padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; border:1px solid rgba(14,175,224,0.5); background:rgba(14,175,224,0.18); color:#0EAFE0;';
-      const inactiveStyle = 'padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#9CA3AF;';
-      if (lang === 'en') {
-        enContent.style.display = 'block';
-        zhContent.style.display = 'none';
-        tabEn.style.cssText = activeStyle;
-        tabZh.style.cssText = inactiveStyle;
-      } else {
-        enContent.style.display = 'none';
-        zhContent.style.display = 'block';
-        tabEn.style.cssText = inactiveStyle;
-        tabZh.style.cssText = activeStyle;
-      }
-    }
-
-    function connectWS() {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host || 'localhost:8090';
-      ws = new WebSocket(`${proto}//${host}`);
-
-      ws.onopen = () => {
-        document.getElementById('connPill').className = 'conn-status';
-        document.getElementById('connLabel').innerText = i18n[currentLang].connConnected;
-        ws.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id: rpcId++,
-          method: 'StartComm',
-          params: ['S32K144W_OpenSDA']
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const res = JSON.parse(event.data);
-          if (res.result && Array.isArray(res.result.data)) {
-            updateDashboard(res.result.data);
-          }
-        } catch (e) {}
-      };
-
-      ws.onclose = () => {
-        isBoardOnline = false;
-        renderOfflineState();
-        document.getElementById('connLabel').innerText = i18n[currentLang].connDisconnected;
-        setTimeout(connectWS, 1500);
-      };
-
-      ws.onerror = () => {
-        ws.close();
-      };
-    }
-
-    function updateDashboard(vars) {
-      if (isPaused) return;
-
-      let touch = 0, delta = 0, x_est = 185, base = 185, raw = 185, conf = 0, cls = 0, exec_us = 32, heartbeat = 0;
-      let cycle = -1, board_online_flag = -1;
-
-      for (let v of vars) {
-        if (v && v.status !== false && v.value !== undefined) {
-          if (v.name === 'g_touch_active') touch = Number(v.value);
-          if (v.name === 'dynamic_delta') delta = Number(v.value);
-          if (v.name === 'kalman_x_est') x_est = Number(v.value);
-          if (v.name === 'baseline_val') base = Number(v.value);
-          if (v.name === 'raw_diff') raw = Number(v.value);
-          if (v.name === 'confidence') conf = Number(v.value);
-          if (v.name === 'predicted_class') cls = Number(v.value);
-          if (v.name === 'g_exec_time_us') exec_us = Number(v.value);
-          if (v.name === 'g_heartbeat_state') heartbeat = Number(v.value);
-          if (v.name === 'g_cycle_counter') cycle = Number(v.value);
-          if (v.name === 'g_board_online') board_online_flag = Number(v.value);
-        }
-      }
-
-      const now = Date.now();
-      if (cycle !== -1 && cycle !== lastCycleCounter) {
-        lastCycleCounter = cycle;
-        lastPacketTimestamp = now;
-      }
-
-      if (isSimMode) {
-        isBoardOnline = true;
-      } else {
-        const isFresh = (lastPacketTimestamp > 0) && (now - lastPacketTimestamp < 500);
-        isBoardOnline = isFresh && (board_online_flag !== 0);
-      }
-
-      if (!isBoardOnline) {
-        renderOfflineState();
-        return;
-      }
-
-      // Online! Update Status Pills & Scope
-      const t = i18n[currentLang];
-      const connPill = document.getElementById('connPill');
-      const connLabel = document.getElementById('connLabel');
-      connPill.className = 'conn-status';
-      connLabel.innerText = isSimMode ? t.connConnected : t.boardConnected;
-
-      // Update Chart Series
-      scopeChart.data.datasets[0].data.shift();
-      scopeChart.data.datasets[0].data.push(delta);
-
-      scopeChart.data.datasets[1].data.shift();
-      scopeChart.data.datasets[1].data.push(raw);
-
-      scopeChart.data.datasets[2].data.shift();
-      scopeChart.data.datasets[2].data.push(x_est);
-
-      scopeChart.data.datasets[3].data.shift();
-      scopeChart.data.datasets[3].data.push(base);
-
-      scopeChart.update();
-
-      // Update Stat Labels
-      document.getElementById('valDelta').innerText = (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' LSB';
-      document.getElementById('valKalman').innerText = x_est.toFixed(1) + ' LSB';
-      document.getElementById('valBaseline').innerText = base.toFixed(1) + ' LSB';
-      document.getElementById('valRaw').innerText = (raw >= 0 ? '+' : '') + raw + ' LSB';
-      document.getElementById('valConf').innerText = Math.round(conf * 100) + '%';
-      document.getElementById('confFill').style.width = Math.round(conf * 100) + '%';
-      document.getElementById('valExec').innerText = exec_us + ' \u03BCs';
-
-      // Synchronized Blue Heartbeat Flash
-      const hbPill = document.getElementById('heartbeatPill');
-      const hbLabel = document.getElementById('heartbeatLabel');
-      const valHeartbeat = document.getElementById('valHeartbeat');
-
-      if (heartbeat === 1) {
-        hbPill.className = 'heartbeat-pill active';
-        hbLabel.innerText = t.heartbeatActive;
-        valHeartbeat.innerText = t.hbActiveText;
-        valHeartbeat.style.color = 'var(--nxp-blue)';
-      } else {
-        hbPill.className = 'heartbeat-pill';
-        hbLabel.innerText = t.heartbeatIdle;
-        valHeartbeat.innerText = t.hbIdleText;
-        valHeartbeat.style.color = 'var(--text-muted)';
-      }
-
-      // Hardware LEDs Stat Row
-      const valLeds = document.getElementById('valLeds');
-      if (touch === 1) {
-        valLeds.innerText = (heartbeat === 1) ? t.ledPressBlueOn : t.ledPressBlueOff;
-        valLeds.style.color = 'var(--nxp-green)';
-      } else {
-        valLeds.innerText = (heartbeat === 1) ? t.ledIdleBlueOn : t.ledIdleBlueOff;
-        valLeds.style.color = '#F87171';
-      }
-
-      // Decision Card
-      const touchCard = document.getElementById('touchCard');
-      const touchText = document.getElementById('touchStatusText');
-      const classBadge = document.getElementById('classBadge');
-
-      if (cls === 3) {
-        touchCard.className = 'card indicator-card water';
-        touchText.innerText = t.statusWater;
-        touchText.style.color = 'var(--nxp-orange)';
-        classBadge.className = 'badge badge-water';
-        classBadge.innerText = t.classWater;
-      } else if (touch === 1) {
-        touchCard.className = 'card indicator-card touched';
-        touchText.innerText = t.statusTouched;
-        touchText.style.color = 'var(--nxp-green)';
-        classBadge.className = 'badge badge-bare';
-        classBadge.innerText = t.classBare;
-      } else {
-        touchCard.className = 'card indicator-card idle';
-        touchText.innerText = t.statusIdle;
-        touchText.style.color = 'var(--nxp-red)';
-        classBadge.className = 'badge badge-idle';
-        classBadge.innerText = t.classIdle;
-      }
-    }
-
-    // Fast polling loop: Query FreeMASTER variables over WebSocket at 40 Hz (25 ms)
-    setInterval(() => {
-      if (isPaused) return;
-
-      if (isSimMode) {
-        simCycle++;
-        const phase = (simCycle % 200);
-        let touch = 0, delta = 0, conf = 0.04, cls = 0;
-        if (50 < phase && phase < 130) {
-          touch = 1;
-          delta = 1450 + 20 * Math.sin(simCycle * 0.25);
-          conf = 0.98;
-          cls = 1;
-        } else {
-          touch = 0;
-          delta = 0 + 2 * Math.sin(simCycle * 0.1);
-          conf = 0.04;
-          cls = 0;
-        }
-        const base = 185;
-        const x_est = base + delta;
-        const heartbeat = ((Date.now() % 1000) < 100) ? 1 : 0; // 0.1s on, 0.9s off (1.0s period)
-        updateDashboard([
-          { name: 'g_touch_active', value: touch },
-          { name: 'dynamic_delta', value: delta },
-          { name: 'kalman_x_est', value: x_est },
-          { name: 'baseline_val', value: base },
-          { name: 'raw_diff', value: Math.round(x_est) },
-          { name: 'confidence', value: conf },
-          { name: 'predicted_class', value: cls },
-          { name: 'g_exec_time_us', value: 32 },
-          { name: 'g_heartbeat_state', value: heartbeat },
-          { name: 'g_cycle_counter', value: simCycle },
-          { name: 'g_board_online', value: 1 }
-        ]);
-      } else if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id: rpcId++,
-          method: 'ReadMultipleVariables',
-          params: [['g_touch_active', 'dynamic_delta', 'kalman_x_est', 'baseline_val', 'raw_diff', 'confidence', 'predicted_class', 'g_exec_time_us', 'g_heartbeat_state', 'g_cycle_counter', 'g_board_online']]
-        }));
-      }
-    }, 25);
-
-    // Watchdog Timer: Runs every 100 ms to detect target power off or disconnect immediately
-    setInterval(() => {
-      if (isPaused || isSimMode) return;
-      if (isBoardOnline && (Date.now() - lastPacketTimestamp >= 500)) {
-        isBoardOnline = false;
-        renderOfflineState();
-      }
-    }, 100);
-
-    function togglePause() {
-      isPaused = !isPaused;
-      const t = i18n[currentLang];
-      document.getElementById('pauseBtn').innerText = isPaused ? t.resumeScope : t.pauseScope;
-    }
-
-    function toggleSim() {
-      isSimMode = !isSimMode;
-      const t = i18n[currentLang];
-      document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
-      if (isSimMode) {
-        lastPacketTimestamp = Date.now();
-        isBoardOnline = true;
-      } else {
-        lastPacketTimestamp = 0;
-        isBoardOnline = false;
-        renderOfflineState();
-      }
-    }
-
-    function resetZoom() {
-      scopeChart.reset();
-    }
-
-    // Technical Glossary Interactive Modal Logic
-    const glossaryModal = document.getElementById('glossaryModal');
-    const glossaryBadge = document.getElementById('glossaryBadge');
-    const glossaryTitle = document.getElementById('glossaryTitle');
-    const glossaryPlain = document.getElementById('glossaryPlain');
-    const glossaryEffect = document.getElementById('glossaryEffect');
-    const glossaryPlainLabel = document.getElementById('glossaryPlainLabel');
-    const glossaryEffectLabel = document.getElementById('glossaryEffectLabel');
-    const glossaryHint = document.getElementById('glossaryHint');
-
-    let activeGlossaryTarget = null;
-    let activeGlossaryKey = null;
-    let hideGlossaryTimeout = null;
-
+    /* ═══════════════════════ Glossary popover ═══════════════════════ */
+    const gm = $('glossaryModal');
+    let activeGlossaryTarget = null, activeGlossaryKey = null, hideT = null;
     function renderGlossaryContent(key) {
-      const dict = i18n[currentLang]?.glossary?.[key] || i18n['zh']?.glossary?.[key];
-      if (!dict) return false;
-
-      const t = i18n[currentLang];
-      glossaryTitle.innerText = dict.title;
-      glossaryBadge.innerText = dict.category;
-      glossaryBadge.style.color = dict.badgeColor || 'var(--nxp-blue)';
-      glossaryBadge.style.borderColor = dict.badgeColor || 'var(--nxp-blue)';
-      glossaryPlain.innerText = dict.plain;
-      glossaryEffect.innerText = dict.effect;
-
-      glossaryPlainLabel.innerText = t.glossaryPlainLabel || '白話文解析';
-      glossaryEffectLabel.innerText = t.glossaryEffectLabel || '對觸控感測器的核心效果';
-      glossaryHint.innerText = t.glossaryHint || '✦ 移開滑鼠即自動關閉視窗';
+      const d = T().glossary?.[key] || i18n.zh.glossary?.[key];
+      if (!d) return false;
+      const t = T();
+      $('gTitle').innerText = d.title;
+      const b = $('gBadge'); b.innerText = d.category; b.style.color = d.badgeColor || 'var(--nxp-blue)'; b.style.borderColor = d.badgeColor || 'var(--nxp-blue)';
+      $('gPlain').innerText = d.plain; $('gEffect').innerText = d.effect;
+      $('gPlainLabel').innerText = t.glossaryPlainLabel; $('gEffectLabel').innerText = t.glossaryEffectLabel; $('gHint').innerText = t.glossaryHint;
       return true;
     }
-
-    function positionGlossaryModal(e) {
-      if (!glossaryModal || glossaryModal.style.display === 'none') return;
-      const modalWidth = glossaryModal.offsetWidth || 370;
-      const modalHeight = glossaryModal.offsetHeight || 240;
-      const padding = 16;
-
-      let left = e.clientX + 16;
-      let top = e.clientY + 16;
-
-      // Flip left if overflowing right boundary
-      if (left + modalWidth > window.innerWidth - padding) {
-        left = Math.max(padding, e.clientX - modalWidth - 16);
-      }
-
-      // Flip up if overflowing bottom boundary
-      if (top + modalHeight > window.innerHeight - padding) {
-        top = Math.max(padding, e.clientY - modalHeight - 16);
-      }
-
-      glossaryModal.style.left = `${left}px`;
-      glossaryModal.style.top = `${top}px`;
+    function positionGM(e) {
+      if (gm.style.display === 'none') return;
+      const w = gm.offsetWidth || 370, h = gm.offsetHeight || 240, pad = 16;
+      let l = e.clientX + 16, tp = e.clientY + 16;
+      if (l + w > innerWidth - pad) l = Math.max(pad, e.clientX - w - 16);
+      if (tp + h > innerHeight - pad) tp = Math.max(pad, e.clientY - h - 16);
+      gm.style.left = l + 'px'; gm.style.top = tp + 'px';
     }
-
-    function showGlossary(key, e) {
-      if (hideGlossaryTimeout) {
-        clearTimeout(hideGlossaryTimeout);
-        hideGlossaryTimeout = null;
-      }
-      activeGlossaryKey = key;
-      if (!renderGlossaryContent(key)) return;
-
-      glossaryModal.style.display = 'block';
-      requestAnimationFrame(() => {
-        glossaryModal.classList.add('visible');
-        positionGlossaryModal(e);
-      });
-    }
-
-    function hideGlossary() {
-      if (!glossaryModal) return;
-      glossaryModal.classList.remove('visible');
-      hideGlossaryTimeout = setTimeout(() => {
-        glossaryModal.style.display = 'none';
-        activeGlossaryTarget = null;
-        activeGlossaryKey = null;
-      }, 180);
-    }
-
-    document.addEventListener('mouseover', (e) => {
-      const trigger = e.target.closest('[data-glossary]');
-      if (trigger) {
-        const key = trigger.getAttribute('data-glossary');
-        activeGlossaryTarget = trigger;
-        showGlossary(key, e);
+    document.addEventListener('mouseover', e => {
+      const tg = e.target.closest('[data-glossary]'); if (!tg) return;
+      clearTimeout(hideT); activeGlossaryTarget = tg; activeGlossaryKey = tg.dataset.glossary;
+      if (!renderGlossaryContent(activeGlossaryKey)) return;
+      gm.style.display = 'block'; requestAnimationFrame(() => { gm.classList.add('visible'); positionGM(e); });
+    });
+    document.addEventListener('mousemove', e => { if (activeGlossaryTarget) positionGM(e); });
+    document.addEventListener('mouseout', e => {
+      const tg = e.target.closest('[data-glossary]');
+      if (tg && tg === activeGlossaryTarget && !tg.contains(e.relatedTarget)) {
+        gm.classList.remove('visible');
+        hideT = setTimeout(() => { gm.style.display = 'none'; activeGlossaryTarget = null; activeGlossaryKey = null; }, 180);
       }
     });
 
-    document.addEventListener('mousemove', (e) => {
-      if (activeGlossaryTarget) {
-        positionGlossaryModal(e);
-      }
-    });
-
-    document.addEventListener('mouseout', (e) => {
-      const trigger = e.target.closest('[data-glossary]');
-      if (trigger && trigger === activeGlossaryTarget) {
-        if (!trigger.contains(e.relatedTarget)) {
-          hideGlossary();
-        }
-      }
-    });
-
-    // Initialize with selected language and connect WebSocket
+    /* ═══════════════════════ Init ═══════════════════════ */
+    $('tickTrg').setAttribute('stroke-dashoffset', (-(314.16 * TRIG) + 1).toFixed(2));
+    $('tickRel').setAttribute('stroke-dashoffset', (-(314.16 * REL) + 1).toFixed(2));
     applyLanguage(currentLang);
+    renderLogEmpty();
+    setMode(false);
     connectWS();
   </script>
 </body>

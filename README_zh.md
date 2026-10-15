@@ -236,6 +236,16 @@ http://localhost:8090/touch_scope.html
 
 ---
 
+## 實機展示影片 (Live Demonstration Videos)
+
+| 實體評估板觸控示範 (SW7 CVD 電極) | 即時網頁動態示波器儀表板操作 |
+| :---: | :---: |
+| [![S32K144W 硬體 EVB 觸控實機展示](https://img.youtube.com/vi/WTYWGVHzmZY/hqdefault.jpg)](https://youtube.com/shorts/WTYWGVHzmZY) | [![FreeMASTER Lite 網頁即時示波器展示](https://img.youtube.com/vi/AEYZ1T0ijv8/hqdefault.jpg)](https://youtu.be/AEYZ1T0ijv8) |
+| [▶ 點擊觀看 EVB 觸控短片 (YouTube Shorts)](https://youtube.com/shorts/WTYWGVHzmZY) | [▶ 點擊觀看網頁儀表板展示 (YouTube)](https://youtu.be/AEYZ1T0ijv8) |
+
+
+---
+
 ## 參考文獻與技術規範 (References & Technical Standards)
 
 本參考實作之演算法公式與物理層設計參考以下權威學術文獻與半導體原廠技術手冊：
