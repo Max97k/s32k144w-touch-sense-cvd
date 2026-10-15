@@ -18,7 +18,12 @@
 #include "touch_baseline.h"
 #include "touch_tinyml.h"
 #include "touch_diag.h"
+#include "touch_sense.h"
 #include "uart_telemetry.h"
+
+/* Define WATER_TEST_MODE to enable the cue-LED schedule used for hardware recording sessions
+ * (Green=idle, Blue=press/drop, Red=done). Off by default so LEDs show the real touch state. */
+/* #define WATER_TEST_MODE */
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
 volatile Touch_M1_Report_t          g_m1_report;
@@ -30,6 +35,7 @@ volatile Touch_TinyMLClassifier_t   g_tinyml_classifier;
 volatile Touch_Diagnostics_t        g_touch_diagnostics;
 volatile uint16_t                   g_lfsr_state = TOUCH_LFSR_DEFAULT_SEED;
 volatile uint32_t                   g_cycle_counter = 0U;
+volatile uint32_t                   g_exec_time_us = 0U;
 volatile boolean                    g_baseline_touch = FALSE;
 volatile boolean                    g_tinyml_touch   = FALSE;
 volatile boolean                    g_touch_active   = FALSE;
@@ -230,7 +236,11 @@ int main(void)
     Telemetry_SendString("    - Reaction Time:           <= 3 cycles (<= 45 ms, Target <= 60 ms)\r\n");
     Telemetry_SendString("    - Auto-Recovery Time:      8 cycles (120 ms, Target <= 200 ms)\r\n");
 
-    /* 12. Initialize ARM Cortex-M SysTick for Hardware-Locked 15.000 ms Frame Synchronizer */
+    /* 12. Initialize Low-Power Subsystem (SIRC 8 MHz + LPIT 25 ms standby timer + SMC VLPS) */
+    Touch_Sense_LowPower_Init();
+    Telemetry_SendString("[*] Milestone 6 Low-Power Engine Initialized (LPIT 25ms + SMC VLPS Ready)\r\n");
+
+    /* 13. Initialize ARM Cortex-M SysTick for Hardware-Locked 15.000 ms Frame Synchronizer */
     S32_SysTick->CSRr = 0U; /* Disable during config */
     S32_SysTick->RVR  = 719999U; /* 48 MHz * 0.015 s - 1 = 719999 ticks (15.000 ms) */
     S32_SysTick->CVR  = 0U; /* Clear current counter */
@@ -238,12 +248,14 @@ int main(void)
 
     Telemetry_SendString("[*] SysTick Hardware 15.000 ms Zero-Jitter Frame Synchronizer Activated.\r\n");
 
-    /* 13. Live Real-Time Continuous Acquisition, Filtering, Baseline, TinyML & Diag Loop */
-    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & ASIL-B Safety Diag Loop (Touch SW7 to test)...\r\n");
+    /* 14. Live Real-Time Continuous Acquisition, Filtering, Baseline, TinyML & Diag Loop */
+    Telemetry_SendString("\r\n[*] Telemetry CSV Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Status>\r\n");
+    Telemetry_SendString("[*] Entering Continuous Touch Sensing & ASIL-B Safety Diag Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
 
     while (1)
     {
+        uint32_t start_cvr = S32_SysTick->CVR;
         g_cycle_counter++;
 
         /* Milestone 2 Step 1: 9x Coprime Multi-Frequency Jittered Burst Acquisition */
@@ -295,7 +307,7 @@ int main(void)
                                                      g_m1_report.vrefh_mv);
 
         /* Normal Touch Candidate: TinyML confirmation AND sufficient dynamic signal */
-        boolean touch_candidate = (g_tinyml_touch && (dynamic_delta >= TOUCH_MIN_GLOVE_DELTA_LSB));
+        boolean touch_candidate = g_tinyml_touch;
 
         /* Milestone 5: ISO 26262 ASIL-B Safety Interlock & Fail-Safe Clamp */
         if (active_faults != TOUCH_FAULT_NONE)
@@ -329,64 +341,46 @@ int main(void)
             }
         }
 
-        int16_t net_shift_raw = g_current_sample.delta_D - g_m1_report.baseline_delta;
-
-        /* Periodic telemetry output interleaved every 10 cycles (~150 ms)
-         * Transmissions are phased to keep frame duration < 5.6 ms, preventing loop stretching */
-        if ((g_cycle_counter % 10U) == 0U)
+#ifdef WATER_TEST_MODE
+        /* Temporary cue schedule (66.7 Hz): Green=idle/release, Blue=press and hold (4 s) x3, Red=done */
+        if ((g_cycle_counter >= 667U) && (g_cycle_counter < 2267U))
         {
-            uint8_t phase = (uint8_t)((g_cycle_counter / 10U) % 3U);
-            if (phase == 0U)
-            {
-                /* Stream 1: Live Raw Telemetry */
-                Telemetry_SendString("LIVE,Delta:");
-                Telemetry_SendInt(g_current_sample.delta_D);
-                Telemetry_SendString(",NetShift:");
-                Telemetry_SendInt(net_shift_raw);
-                Telemetry_SendString(",DynDelta:");
-                Telemetry_SendFloat(dynamic_delta, 1U);
-                Telemetry_SendString(g_touch_active ? " [TOUCHED]\r\n" : " [IDLE]\r\n");
-            }
-            else if (phase == 1U)
-            {
-                /* Stream 2: Milestone 2 & 3 Filter & Baseline Status */
-                Telemetry_SendString("M23,Xest:");
-                Telemetry_SendFloat(x_est, 1U);
-                Telemetry_SendString(",Base:");
-                Telemetry_SendFloat(g_baseline_tracker.baseline, 1U);
-                Telemetry_SendString(",Spr:");
-                Telemetry_SendFloat(spread, 1U);
-                Telemetry_SendString(",Zone:");
-                Telemetry_SendUInt((uint32_t)g_baseline_tracker.active_zone);
-                Telemetry_SendString(g_baseline_touch ? ",B_Touch:1\r\n" : ",B_Touch:0\r\n");
-            }
-            else
-            {
-                /* Stream 3: Milestone 4 & 5 Diagnostics Telemetry */
-                Telemetry_SendString("M45,Cls:");
-                Telemetry_SendUInt((uint32_t)detected_class);
-                Telemetry_SendString(",Cnf:");
-                Telemetry_SendFloat(g_tinyml_classifier.confidence, 2U);
-                Telemetry_SendString(",A:");
-                Telemetry_SendUInt(g_current_sample.sample_A);
-                Telemetry_SendString(",B:");
-                Telemetry_SendUInt(g_current_sample.sample_B);
-                Telemetry_SendString(",Bal:");
-                Telemetry_SendInt(g_touch_diagnostics.last_balance_diff);
-                Telemetry_SendString(",Vref:");
-                Telemetry_SendUInt(g_m1_report.vrefh_mv);
-                if (active_faults == TOUCH_FAULT_NONE)
-                {
-                    Telemetry_SendString(",Diag:OK\r\n");
-                }
-                else
-                {
-                    Telemetry_SendString(",Fault:0x");
-                    Telemetry_SendHex(active_faults, 4U);
-                    Telemetry_SendString(" [FAILSAFE]\r\n");
-                }
-            }
+            Touch_SetStatusLeds(FALSE, (((g_cycle_counter - 667U) % 533U) >= 267U), (((g_cycle_counter - 667U) % 533U) < 267U));
         }
+        else if ((g_cycle_counter >= 2267U) && (g_cycle_counter < 2400U)) { Touch_SetStatusLeds(TRUE,  FALSE, FALSE); }
+        else                                                              { Touch_SetStatusLeds(FALSE, TRUE,  FALSE); }
+#endif
+
+        /* Compute execution time in microseconds using 48 MHz SysTick CVR */
+        uint32_t end_cvr = S32_SysTick->CVR;
+        uint32_t elapsed_ticks = (start_cvr >= end_cvr) ? (start_cvr - end_cvr) : (start_cvr + 720000U - end_cvr);
+        g_exec_time_us = elapsed_ticks / 48U;
+
+        /* Real-Time Continuous High-Resolution Telemetry Stream (66.7 Hz, 15.0 ms Frame Rate)
+         * String format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Status> */
+        Telemetry_SendString("D,");
+        Telemetry_SendUInt(g_cycle_counter);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt(g_current_sample.sample_A);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt(g_current_sample.sample_B);
+        Telemetry_SendString(",");
+        Telemetry_SendInt(g_current_sample.delta_D);
+        Telemetry_SendString(",");
+        Telemetry_SendFloat(x_est, 1U);
+        Telemetry_SendString(",");
+        Telemetry_SendFloat(g_baseline_tracker.baseline, 1U);
+        Telemetry_SendString(",");
+        Telemetry_SendFloat(dynamic_delta, 1U);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt((uint32_t)detected_class);
+        Telemetry_SendString(",");
+        Telemetry_SendFloat(g_tinyml_classifier.confidence, 2U);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt(g_touch_active ? 1U : 0U);
+        Telemetry_SendString(",");
+        Telemetry_SendUInt(g_exec_time_us);
+        Telemetry_SendString(g_touch_active ? ",TOUCH\r\n" : ",IDLE\r\n");
 
         /* Hardware-Locked Exact 15.000 ms Frame Synchronization via SysTick COUNTFLAG */
         while ((S32_SysTick->CSRr & S32_SysTick_CSR_COUNTFLAG_MASK) == 0U)

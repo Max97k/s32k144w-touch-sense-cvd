@@ -183,6 +183,18 @@ float Touch_Kalman_Update(Touch_Kalman_t *kf, float z_meas, float spread)
     float x_pred = kf->x_est;
     float p_pred = kf->p_est + kf->q_proc;
 
+    /* Large consistent step (measured real finger: ~+1300 LSB): burst samples agree
+     * (spread small relative to the step), so it is genuine, not EFT. Follow immediately. */
+    float innov = z_meas - x_pred;
+    float abs_innov = (innov < 0.0f) ? -innov : innov;
+    if ((abs_innov > 100.0f) && (spread < (0.25f * abs_innov)))
+    {
+        kf->x_est  = z_meas;
+        kf->p_est  = kf->r_base;
+        kf->k_gain = 0.99f;
+        return kf->x_est;
+    }
+
     /* 2. Adaptive Measurement Noise Variance mapping */
     /* R_k = R_base + alpha * (spread)^2 */
     float r_k = kf->r_base + (kf->alpha * (spread * spread));

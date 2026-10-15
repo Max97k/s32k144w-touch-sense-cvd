@@ -144,7 +144,10 @@ void Touch_TinyML_ExtractFeatures(Touch_TinyMLClassifier_t *classifier)
             float diff = ordered_delta[i] - p_mean;
             var_sum += (diff * diff);
         }
-        classifier->features.plateau_variance = var_sum / 4.0f;
+        /* Amplitude-relative variance: unchanged for signals <= 50 LSB, scaled for strong
+         * contacts (measured on hardware: real finger gives +1300 LSB, noise ~3 LSB). */
+        float scale = (p_mean > 50.0f) ? (p_mean / 50.0f) : 1.0f;
+        classifier->features.plateau_variance = (var_sum / 4.0f) / (scale * scale);
     }
     else
     {
@@ -194,6 +197,10 @@ Touch_ClassificationClass_t Touch_TinyML_Update(Touch_TinyMLClassifier_t *classi
     Touch_EnvelopeFeatures_t *feat = &classifier->features;
     Touch_ClassificationClass_t inst_class = TOUCH_CLASS_NONE;
     float inst_prob = 0.0f;
+
+    /* Amplitude-relative spread: unchanged for delta <= 50 LSB, scaled for strong contacts */
+    float amp_scale = (delta > 50.0f) ? (delta / 50.0f) : 1.0f;
+    spread = spread / amp_scale;
 
     /* 3. TinyML Decision Tree Feature Classification Engine */
     if (feat->peak_delta < 20.0f)
@@ -283,17 +290,32 @@ Touch_ClassificationClass_t Touch_TinyML_Update(Touch_TinyMLClassifier_t *classi
     classifier->confidence = sum_conf / (float)TOUCH_TINYML_CONF_WINDOW_SIZE;
 
     /* 5. 3-Step Confidence Hysteresis Filtering */
+    boolean has_evidence = ((inst_class == TOUCH_CLASS_BARE_FINGER) || (inst_class == TOUCH_CLASS_GLOVE_OVERLAY));
     if (classifier->is_valid_touch)
     {
-        if (classifier->confidence < TOUCH_CONF_RELEASE_THRESHOLD)
+        /* Hardware shows isolated frames reading untouched during real contact:
+         * hold the touch until 5 consecutive frames (75 ms) lack evidence. */
+        if (has_evidence)
+        {
+            classifier->miss_cnt = 0U;
+        }
+        else if (classifier->miss_cnt < 255U)
+        {
+            classifier->miss_cnt++;
+        }
+        else
+        {
+            /* saturated */
+        }
+        if (classifier->miss_cnt >= 5U)
         {
             classifier->is_valid_touch = FALSE;
         }
     }
     else
     {
-        if ((classifier->confidence >= TOUCH_CONF_TRIGGER_THRESHOLD) &&
-            ((inst_class == TOUCH_CLASS_BARE_FINGER) || (inst_class == TOUCH_CLASS_GLOVE_OVERLAY)))
+        classifier->miss_cnt = 0U;
+        if ((classifier->confidence >= TOUCH_CONF_TRIGGER_THRESHOLD) && has_evidence)
         {
             classifier->is_valid_touch = TRUE;
         }

@@ -85,6 +85,7 @@ typedef struct {
     Touch_ClassificationClass_t detected_class;                          /* Latest evaluated class */
     float                       confidence;                              /* Smoothed confidence [0.0 ~ 1.0] */
     boolean                     is_valid_touch;                          /* Final filtered touch decision */
+    uint8_t                     miss_cnt;                                /* Consecutive frames without touch evidence (dropout hold) */
 
     uint32_t                    total_classifications;                   /* Total evaluations count */
     uint32_t                    water_rejections_count;                  /* Total water droplets rejected */

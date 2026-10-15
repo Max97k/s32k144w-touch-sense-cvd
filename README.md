@@ -46,41 +46,90 @@ Implemented in strict adherence to **NXP Real Time Drivers (RTD 3.0.0)**, **S32 
 
 ---
 
+## Verification Levels (read this first)
+
+Every claim below is tagged with how it was verified:
+
+| Tag | Meaning |
+| :--- | :--- |
+| **[HW]** | Measured on the real XS32K14WEVB-Q064 board (UART capture, CSV in `tests/`) |
+| **[SIM]** | Verified only by a Python replica of the C algorithm (`tests/test_m*_contract.py`) using *assumed* signal models |
+| **[NONE]** | Not verified yet |
+
+> **Important correction (2026-10-15):** Milestones 2-5 were originally signed off on **[SIM]** evidence only, using an
+> assumed finger signal of about +150 LSB. Live hardware recordings later showed a real finger produces about
+> **+1400 to +2700 LSB**, and several simulated figures did not hold on hardware. The numbers below are re-stated
+> accordingly. The Python contract tests currently **do not mirror** the latest C changes (see Known Issues).
+
 ## Milestone Progress Roadmap
 
-- [x] **Milestone 1: Bipolar Differential Physical Layer & 2x Gain Validation** (`v1.0.1-m1`)
-  - [x] ADC0 32x hardware self-calibration (AN12217) & Bandgap (Channel 27) $V_{\text{REFH}}$ monitoring.
-  - [x] Microsecond bipolar 4-phase CVD acquisition (`Touch_AcquireSingleDiffCVD`).
-  - [x] Workpoint validation ($1600 \sim 2500\text{ LSB}$), balanced diff $< 15\text{ LSB}$, touch delta $80 \sim 200\text{ LSB}$.
-  - [x] Zero heap, timeout guarded execution, 100-sample verification dataset (`m1_baseline_100_samples.csv`).
-- [x] **Milestone 2: Spread-Spectrum Hopping & Median-Cascaded Kalman Filter** (`v1.0.2-m2`)
-  - [x] 16-bit Galois LFSR (`0xB400`) with coprime hopping delays $\{15, 23, 31\}$ cycles.
-  - [x] $N=9$ multi-frequency burst acquisition with alpha-trimmed mean (top/bottom 2 outlier rejection).
-  - [x] 1D adaptive scalar Kalman filter ($Q=0.35, R=1.0, \alpha=0.75$), gain dynamically mapped from noise spread.
-  - [x] Baseline noise $\sigma = 0.103\text{ LSB}$ ($5.86\times$ suppression), touch $\text{SNR} = 65.57\text{ dB}$, $+800\text{ LSB}$ EFT residual $< 0.33\text{ LSB}$.
-- [x] **Milestone 3: Asymmetric Baseline Tracker with Touch-on-Boot Recovery** (`v1.0.3-m3`)
-  - [x] 4-Zone asymmetric dynamic baseline tracking state machine (Tracking, Hold, Approach Freeze, Negative Recovery).
-  - [x] Slew rate bounded ambient tracking ($+1.5\text{ LSB/s}$ / $-2.0\text{ LSB/s}$).
-  - [x] Touch-on-boot negative self-healing in $285\text{ ms}$ (target $\le 300 \sim 500\text{ ms}$).
-  - [x] 5-second ultra-slow approaching zero signal swallowing (freeze at $0.4\times\text{TH}$).
-  - [x] 15-second foreign object continuous hold timeout auto-reset.
-- [x] **Milestone 4: Temporal Envelope Feature Classification (TinyML) & Water Rejection** (`v1.0.4-m4`)
-  - [x] 4 temporal envelope feature extractors: attack slope, dynamic SNR, plateau variance, energy.
-  - [x] 3-step confidence sliding window hysteresis ($\text{trigger} = 0.65, \text{release} = 0.35$).
-  - [x] Multi-class recognition: Bare Finger ($\text{TPR} = 100\%$), Glove/Acrylic ($\text{TPR} = 100\%$), Water Spray ($\text{FPR} = 0\%$), Edge Hover ($\text{FPR} = 0\%$).
-  - [x] Detection latency: $45.0\text{ ms}$ (bare) / $53.1\text{ ms}$ (glove).
-  - [x] Hardware-locked exact $15.000\text{ ms}$ SysTick frame synchronizer.
-- [x] **Milestone 5: Online Dual-Channel Hardware Defect Diagnostics & ASIL-B Safety Engine** (`v1.0.5-m5`)
-  - [x] Dual-window electrode Short-to-GND ($< 300\text{ LSB}$) and Short-to-VDD ($> 3800\text{ LSB}$) detection.
-  - [x] Bridging resistor $R_{525}$ ($10\text{ k}\Omega$) open-circuit / degradation monitoring ($|v_{14} - v_{15}| > 250\text{ LSB}$).
-  - [x] ADC reference voltage $V_{\text{REFH}}$ supply drift ($\pm 5\%$) monitoring via Bandgap Ch27 ($4750 \sim 5250\text{ mV}$).
-  - [x] ASIL-B fail-safe clamp (unconditional touch suppression during hardware faults, Red LED indicator).
-  - [x] Debounce qualification in 2 cycles ($\le 30\text{ ms}$) and auto-recovery self-healing in 8 cycles ($\le 120\text{ ms}$).
-  - [x] Live hardware telemetry verification on S32K144W EVB with zero false failsafes (`Diag:OK`).
-- [ ] **Milestone 6: VLPS Low-Power Sleep/Wakeup Integration & 12h Burn-in Test** (PLANNED)
-  - [ ] LPIT periodic wakeup from PMC VLPS mode ($\le 60\text{ }\mu\text{s}$ active execution).
-  - [ ] Deep-sleep power target $45 \sim 70\text{ }\mu\text{A}$.
-  - [ ] 12-hour continuous burn-in stability test with zero false triggers.
+- [x] **M1: Bipolar Differential Physical Layer** (`v1.0.1-m1`) - **[HW] static only**
+  - [x] ADC0 32x self-calibration (AN12217), Bandgap Ch27 monitoring. [HW]
+  - [x] Bipolar 4-phase CVD acquisition (`Touch_AcquireSingleDiffCVD`). [HW]
+  - [x] Untouched workpoint A = 2079.2 (sigma 0.46), B = 1745.0 (sigma 0.30), delta_D = -334.1 (sigma 0.59), 100 samples. [HW]
+  - [ ] "Touch delta 80~200 LSB" criterion: the M1 dataset contains **no touched samples**; first real touch data came later (about +1400 to +2700 LSB, i.e. far above the planned range). [see Known Issues #3]
+- [~] **M2: Spread-Spectrum Hopping & Cascaded Kalman Filter** (`v1.0.2-m2`) - **[SIM] + partial [HW]**
+  - [x] 16-bit LFSR, coprime delays {15,23,31}, N=9 burst, alpha-trimmed mean, adaptive 1D Kalman. [code present, runs on HW]
+  - [ ] Static noise: **[HW] measured x_est sigma = 1.6-2.3 LSB (target < 1.5)**. The earlier "0.103 LSB / 65.57 dB SNR" was **[SIM] only** and is not a hardware result.
+  - [x] Tap response: large consistent steps now bypass Kalman averaging (fast path added after hardware test). [HW: touch detected within 1 frame]
+  - [ ] EFT +800 LSB immunity: **[SIM] only**, never injected on hardware.
+- [~] **M3: Asymmetric Baseline Tracker** (`v1.0.3-m3`) - **[SIM] + [HW] baseline stable**
+  - [x] 4-zone state machine, slew +1.5/-2.0 LSB/s. Baseline stayed at about -338..-340 across all hardware recordings. [HW]
+  - [ ] Touch-on-boot 285 ms, 5 s slow approach, hair-dryer drift, 15 s coin timeout: **[SIM] only**.
+- [~] **M4: Temporal Envelope Classification (TinyML)** (`v1.0.4-m4`) - **re-opened**
+  - [x] Bare-finger press/release, 3 cued trials: detected in 13-16 ms, released within -30..+60 ms, 93-100% of held frames flagged. [HW]
+  - [x] Thresholds made amplitude-relative and a 5-frame dropout hold added after hardware data showed per-frame ΔD flicker. [HW]
+  - [ ] **Water droplet rejection FAILED on hardware** (3 droplet events, 45 frames falsely flagged as touch). See Known Issues #2.
+  - [ ] Glove/acrylic: **[NONE]** - no real glove data recorded.
+  - [ ] The earlier "TPR 100% / FPR 0%" figures were **[SIM]** only.
+- [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only**
+  - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
+  - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
+- [~] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**)
+  - [x] Unified driver `touch_sense.h/.c` written and builds clean. [builds; not used by `main.c` yet]
+  - [ ] Execution time: **[HW] measured about 210 us per cycle (194-235 us) vs. target <= 60 us - FAIL.** An earlier "28-35 us" figure was an estimate, not a measurement.
+  - [ ] VLPS current 45-70 uA: **[NONE]** - never measured (needs ammeter on J15). VLPS entry itself has not been exercised on hardware.
+  - [ ] 12 h burn-in: **[NONE]** - not run. An earlier "2,880,000-cycle simulation" plan was only a plan.
+
+---
+
+## Real Hardware Data (for review)
+
+All files are raw UART captures from the real board (66.7 Hz, one frame per 15 ms), recorded with
+[`tools/record_live.py`](tools/record_live.py). Columns: `t_s,cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,status`
+(`cls`: 0 none, 1 glove, 2 bare finger, 3 water, 4 edge hover).
+
+| File | What it is |
+| :--- | :--- |
+| [`m1_baseline_100_samples.csv`](m1_baseline_100_samples.csv) | M1: 100 untouched A/B/ΔD samples |
+| [`tests/m_live_recording.csv`](tests/m_live_recording.csv) | 30 s, first live recording (only one brief touch) - exposed the missed-touch problem |
+| [`tests/m_live_random_poke.csv`](tests/m_live_random_poke.csv) | 60 s random poking, **before** fixes (touch flagged on only 2% of contact frames) |
+| [`tests/m_live_random_poke_v2.csv`](tests/m_live_random_poke_v2.csv) | 60 s random poking after Kalman fast-path + amplitude-relative thresholds |
+| [`tests/m_live_random_poke_v3.csv`](tests/m_live_random_poke_v3.csv) | 60 s random poking after dropout hold (8/8 contacts detected) |
+| [`tests/m_press_release_test.csv`](tests/m_press_release_test.csv) | 40 s, LED-cued: 3 x (4 s press, 4 s release) with bare finger |
+| [`tests/m_water_test.csv`](tests/m_water_test.csv) | 100 s, LED-cued: prep / water drops / wipe dry (water test) |
+| [`m4_tinyml_multiclass_dataset.csv`](m4_tinyml_multiclass_dataset.csv), [`m5_fault_injection_log.csv`](m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
+
+To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Green = idle, Blue = press/drop, Red = done).
+
+### Key hardware observations
+- Untouched: A about 2080, B about 1744, ΔD about -340, baseline about -339. Static sigma: A 1.5-1.9, B 1.1-1.8, ΔD 2.1-3.3, x_est 1.6-2.3 LSB.
+- Real finger: ΔD jumps to **+1100 ... +2300** (A falls to about 860, B rises to about 2040), a shift of about +1400 to +2700 LSB from baseline.
+- During a continuous press, ΔD often alternates **frame by frame** between about +1100 and about -340 (15 ms; not human motion).
+- Water droplets: ΔD peaks only about +153 (mostly negative), A and B both fall; `x_est` up to +38, `dyn` up to +384.
+
+---
+
+## Known Issues (open items for expert review)
+
+1. **Simulation-vs-hardware gap.** M2-M5 thresholds were tuned on a +150 LSB assumed signal; the real finger is about 10x larger. Some thresholds were already rescaled (amplitude-relative variance/spread, Kalman step fast path), but the Python contract tests (`tests/test_m2..m5_contract.py`) still replicate the **old** C logic and must be rewritten against real recordings.
+2. **Water droplets cause false touches.** The water rule only rejects peak < 45 LSB; real droplets reach 150-380 LSB and were classified as "glove". Candidate fixes: (A) raise the water ceiling to about 600 LSB (risk: rejects real glove signals, whose amplitude is unmeasured); (B) use the common-mode feature (A and B falling together vs. finger A-down/B-up). Needs glove data to choose.
+3. **M1 touch-gain criterion never measured at M1.** The planned 80-200 LSB window was an assumption; the measured gain is about 10x larger. The plan's thresholds should be revisited.
+4. **Static noise higher than M1.** M1: delta_D sigma 0.59 LSB. Current: 2.1-3.3 LSB (x_est 1.6-2.3, above the M2 target of 1.5). Suspected cause: back-to-back burst acquisition (short idle-ground time between samples, jittered inter-sample delay). **Unconfirmed**; a fixed-vs-random spacing A/B recording is needed.
+5. **Unexplained per-frame ΔD flicker during contact.** Could be body/mains coupling, a timing artefact or ADC/charge-sharing behaviour. Currently masked by a 5-frame (75 ms) dropout hold, not root-caused.
+6. **Execution time about 210 us vs. 60 us target (M6).** Measured with the SysTick down-counter around acquisition + filter + baseline + classifier + diagnostics (UART output excluded). Needs profiling (float math, 9-sample burst with `NopDelayExact`).
+7. **VLPS path untested on hardware.** `main.c` calls `Touch_Sense_LowPower_Init()` but never `Touch_Sense_EnterVLPS()`; the unified `Touch_Sense_ProcessCycle()` engine is also not used by `main.c` yet. A first hardware run exposed a hang: the LPIT0 vector maps to `undefined_handler`, so its NVIC line is now enabled only around `wfi` as a workaround.
+8. **Process note.** Early milestone reports were written from simulation results and described as passed; this README now separates [HW] / [SIM] / [NONE].
 
 ---
 
