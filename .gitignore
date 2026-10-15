@@ -25,6 +25,7 @@ RTD/
 .metadata/
 .settings/language.settings.xml
 .settings/org.eclipse.core.resources.prefs
+.vscode/
 
 # ==============================================================================
 # Temporary Dumps & Tool Reports

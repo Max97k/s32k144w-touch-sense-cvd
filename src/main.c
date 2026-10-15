@@ -13,13 +13,17 @@
 
 #include "Clock_Ip.h"
 #include "touch_cvd.h"
+#include "touch_filter.h"
 #include "uart_telemetry.h"
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
-volatile Touch_M1_Report_t g_m1_report;
-volatile Touch_RawSample_t g_current_sample;
-volatile uint32_t          g_cycle_counter = 0U;
-volatile boolean           g_touch_active  = FALSE;
+volatile Touch_M1_Report_t          g_m1_report;
+volatile Touch_RawSample_t          g_current_sample;
+volatile Touch_Kalman_t             g_kalman_filter;
+volatile Touch_M2_FilteredSample_t  g_m2_sample;
+volatile uint16_t                   g_lfsr_state = TOUCH_LFSR_DEFAULT_SEED;
+volatile uint32_t                   g_cycle_counter = 0U;
+volatile boolean                    g_touch_active  = FALSE;
 
 static void SimpleDelay(uint32_t loops)
 {
@@ -169,30 +173,65 @@ int main(void)
         Telemetry_SendString("    [-] Criterion 2 (Balanced Diff < 15 LSB): FAILED\r\n");
     }
 
-    /* 8. Live Real-Time Continuous Acquisition Loop */
-    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing Loop (Touch SW7 to test)...\r\n");
+    /* 8. Initialize 1D Adaptive Scalar Kalman Filter (Milestone 2) */
+    Touch_Kalman_Init((Touch_Kalman_t *)&g_kalman_filter,
+                      (float)g_m1_report.baseline_delta,
+                      TOUCH_KALMAN_DEFAULT_Q,
+                      TOUCH_KALMAN_DEFAULT_RBASE,
+                      TOUCH_KALMAN_DEFAULT_ALPHA);
+
+    Telemetry_SendString("[*] Milestone 2 Adaptive Kalman Filter Initialized:\r\n");
+    Telemetry_SendString("    - Initial State (x_est): ");
+    Telemetry_SendInt(g_m1_report.baseline_delta);
+    Telemetry_SendString(" LSB\r\n");
+    Telemetry_SendString("    - Burst Samples (N):     9 (Coprime Multi-Frequency Jitter)\r\n");
+    Telemetry_SendString("    - Alpha-Trimmed Mean:    Discard 2 min, 2 max, avg middle 5\r\n");
+
+    /* 9. Live Real-Time Continuous Acquisition & Filtering Loop */
+    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & Filtering Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
 
     while (1)
     {
         g_cycle_counter++;
-        SimpleDelay(30000U); /* ~15 ms cycle time */
+        SimpleDelay(25000U); /* ~12 ms cycle time */
 
+        /* Milestone 2 Step 1: 9x Coprime Multi-Frequency Jittered Burst Acquisition */
+        int16_t burst[TOUCH_BURST_SAMPLE_COUNT];
+        Touch_AcquireBurstMFP(burst, TOUCH_BURST_SAMPLE_COUNT, g_m1_report.optimal_nop, (uint16_t *)&g_lfsr_state);
+
+        /* Single-ended raw sample for baseline tracking / telemetry */
         g_current_sample = Touch_AcquireSingleDiffCVD(g_m1_report.optimal_nop);
 
-        /* Touch detection threshold: delta_D shifts by >= 50 LSB from baseline */
-        int16_t net_shift = g_current_sample.delta_D - g_m1_report.baseline_delta;
+        /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean & Noise Spread Metric */
+        float z_meas = 0.0f;
+        float spread = 0.0f;
+        Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread);
 
-        if (net_shift >= 50)
+        /* Milestone 2 Step 3: 1D Adaptive Scalar Kalman Filter Update */
+        float x_est = Touch_Kalman_Update((Touch_Kalman_t *)&g_kalman_filter, z_meas, spread);
+
+        /* Store diagnostics */
+        g_m2_sample.raw_diff    = burst[4];
+        g_m2_sample.z_meas      = z_meas;
+        g_m2_sample.x_est       = x_est;
+        g_m2_sample.spread      = spread;
+        g_m2_sample.kalman_gain = g_kalman_filter.k_gain;
+
+        /* Touch detection based on filtered Kalman state x_est */
+        float net_shift_filtered = x_est - (float)g_m1_report.baseline_delta;
+        int16_t net_shift_raw    = g_current_sample.delta_D - g_m1_report.baseline_delta;
+
+        if (net_shift_filtered >= 50.0f)
         {
             g_touch_active = TRUE;
             /* Turn on Blue LED when touched, Green off */
             Touch_SetStatusLeds(FALSE, FALSE, TRUE);
 
-            if (net_shift >= M1_TOUCH_DELTA_MIN_LSB)
+            if (net_shift_filtered >= (float)M1_TOUCH_DELTA_MIN_LSB)
             {
                 g_m1_report.criteria_3_gain_pass = TRUE;
-                g_m1_report.touch_delta_shift = net_shift;
+                g_m1_report.touch_delta_shift = (int16_t)net_shift_filtered;
             }
         }
         else
@@ -205,6 +244,7 @@ int main(void)
         /* Periodic telemetry output every 10 cycles (~150 ms) */
         if ((g_cycle_counter % 10U) == 0U)
         {
+            /* Backward compatible M1 line for existing loggers */
             Telemetry_SendString("LIVE,A:");
             Telemetry_SendUInt(g_current_sample.sample_A);
             Telemetry_SendString(",B:");
@@ -212,8 +252,21 @@ int main(void)
             Telemetry_SendString(",Delta:");
             Telemetry_SendInt(g_current_sample.delta_D);
             Telemetry_SendString(",NetShift:");
-            Telemetry_SendInt(net_shift);
+            Telemetry_SendInt(net_shift_raw);
             Telemetry_SendString(g_touch_active ? " [TOUCHED]\r\n" : " [IDLE]\r\n");
+
+            /* Milestone 2 Extended Filtered Telemetry Stream */
+            Telemetry_SendString("M2,Zmeas:");
+            Telemetry_SendFloat(z_meas, 1U);
+            Telemetry_SendString(",Xest:");
+            Telemetry_SendFloat(x_est, 2U);
+            Telemetry_SendString(",Spread:");
+            Telemetry_SendFloat(spread, 1U);
+            Telemetry_SendString(",K:");
+            Telemetry_SendFloat(g_kalman_filter.k_gain, 3U);
+            Telemetry_SendString(",FiltShift:");
+            Telemetry_SendFloat(net_shift_filtered, 2U);
+            Telemetry_SendString("\r\n");
         }
     }
 
