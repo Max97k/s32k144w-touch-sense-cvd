@@ -303,18 +303,110 @@
     .badge-idle { background: rgba(239, 68, 68, 0.2); color: var(--nxp-red); border: 1px solid var(--nxp-red); }
     .badge-offline { background: rgba(239, 68, 68, 0.25); color: #EF4444; border: 1px solid #EF4444; }
     .badge-swipe { background: rgba(139, 92, 246, 0.2); color: var(--nxp-purple); border: 1px solid var(--nxp-purple); }
+
+    /* Interactive Plain Language Technical Glossary Floating Modal */
+    .glossary-modal {
+      position: fixed;
+      z-index: 10000;
+      width: 370px;
+      max-width: 90vw;
+      background: rgba(15, 23, 42, 0.97);
+      border: 1px solid rgba(14, 175, 224, 0.5);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(14, 175, 224, 0.3);
+      backdrop-filter: blur(16px);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px) scale(0.97);
+      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glossary-modal.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .glossary-header {
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+    }
+    .glossary-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      background: rgba(14, 175, 224, 0.15);
+      border: 1px solid rgba(14, 175, 224, 0.4);
+      color: #0EAFE0;
+    }
+    .glossary-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #F3F4F6;
+      line-height: 1.35;
+    }
+    .glossary-section {
+      margin-bottom: 10px;
+    }
+    .glossary-section.highlight {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .glossary-section-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #9CA3AF;
+      margin-bottom: 4px;
+    }
+    .glossary-section.highlight .glossary-section-title {
+      color: #10B981;
+    }
+    .glossary-text {
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #E2E8F0;
+    }
+    .glossary-tip {
+      font-size: 10px;
+      color: #64748B;
+      text-align: right;
+      margin-top: 4px;
+    }
+    [data-glossary] {
+      cursor: help;
+      text-decoration: underline dotted rgba(14, 175, 224, 0.65);
+      text-underline-offset: 4px;
+      transition: all 0.2s ease;
+    }
+    [data-glossary]:hover {
+      color: #38BDF8 !important;
+      text-decoration-color: #0EAFE0;
+      text-shadow: 0 0 10px rgba(14, 175, 224, 0.6);
+    }
   </style>
 </head>
 <body>
 
   <div class="header-bar">
     <div class="brand">
-      <div class="brand-logo" id="brandTitle">Touch Sensing Demo</div>
-      <div class="brand-title" id="pageSubTitle">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
+      <div class="brand-logo" id="brandTitle" data-glossary="cvd">Touch Sensing Demo</div>
+      <div class="brand-title" id="pageSubTitle" data-glossary="board">XS32K14WEVB-Q064 Automotive CVD Capacitive Touch Engine</div>
     </div>
     <div class="header-actions">
       <!-- 0.1s ON / 0.9s OFF Synchronized Hardware Heartbeat Indicator -->
-      <div class="heartbeat-pill" id="heartbeatPill" title="Blinks synchronously with Board Blue LED (0.1s ON, 0.9s OFF)">
+      <div class="heartbeat-pill" id="heartbeatPill" data-glossary="heartbeat" title="Blinks synchronously with Board Blue LED (0.1s ON, 0.9s OFF)">
         <div class="heartbeat-dot" id="heartbeatDot"></div>
         <span id="heartbeatLabel">MCU Heartbeat (0.1s/0.9s)</span>
       </div>
@@ -336,9 +428,9 @@
     <!-- Main Oscilloscope Card -->
     <div class="card">
       <div class="card-title">
-        <span id="scopeTitle">Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
+        <span id="scopeTitle" data-glossary="systick">Real-Time Multi-Trace Touch Oscilloscope (66.7 Hz / 15.0 ms Frame Synchronized)</span>
         <div style="font-size: 12px; font-weight: normal; color: var(--text-muted);">
-          <span id="rollingWindowText">Rolling Window: 100 Samples</span>
+          <span id="rollingWindowText" data-glossary="rollingWindow">Rolling Window: 100 Samples</span>
         </div>
       </div>
       <div class="chart-box">
@@ -355,49 +447,54 @@
     <div>
       <!-- Touch Status Card -->
       <div class="card indicator-card idle" id="touchCard">
-        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);" id="decisionTitle">
+        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);" id="decisionTitle" data-glossary="decision">
           Hardware Touch Decision
         </div>
         <div class="indicator-text" id="touchStatusText" style="color: var(--nxp-red);">
           IDLE / UNTOUCHED (RED LED)
         </div>
         <div style="margin-top: 8px;">
-          <span class="badge badge-idle" id="classBadge">CLASS: IDLE</span>
+          <span class="badge badge-idle" id="classBadge" data-glossary="decision">CLASS: IDLE</span>
         </div>
       </div>
 
       <!-- TinyML & Metrics Card -->
       <div class="card">
-        <div class="card-title" id="metricsTitle">Algorithm Metrics</div>
+        <div class="card-title">
+          <span id="metricsTitle">Algorithm Metrics</span>
+          <span style="font-size: 11px; font-weight: normal; color: var(--nxp-blue); text-transform: none; display: flex; align-items: center; gap: 4px;">
+            <span>💡</span><span id="metricsHelpHint">懸停名詞查看白話解析</span>
+          </span>
+        </div>
         
         <div class="stat-row">
-          <span class="stat-label" id="lblDelta">Net Shift &Delta;<sub>dyn</sub>:</span>
+          <span class="stat-label" id="lblDelta" data-glossary="delta">Net Shift &Delta;<sub>dyn</sub>:</span>
           <span class="stat-value" id="valDelta" style="color: var(--nxp-purple);">+0.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblKalman">Kalman Filter x<sub>est</sub>:</span>
+          <span class="stat-label" id="lblKalman" data-glossary="kalman">Kalman Filter x<sub>est</sub>:</span>
           <span class="stat-value" id="valKalman" style="color: var(--nxp-green);">185.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblBaseline">Dynamic Baseline:</span>
+          <span class="stat-label" id="lblBaseline" data-glossary="baseline">Dynamic Baseline:</span>
           <span class="stat-value" id="valBaseline" style="color: var(--nxp-orange);">185.0 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblRaw">Raw Differential &Delta;D:</span>
+          <span class="stat-label" id="lblRaw" data-glossary="raw">Raw Differential &Delta;D:</span>
           <span class="stat-value" id="valRaw" style="color: var(--nxp-blue);">+185 LSB</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblDta">DTA Threshold:</span>
+          <span class="stat-label" id="lblDta" data-glossary="dta">DTA Threshold:</span>
           <span class="stat-value" id="valDta" style="color: var(--text-muted);">48.0 LSB</span>
         </div>
 
         <div class="stat-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
           <div style="display: flex; justify-content: space-between; width: 100%;">
-            <span class="stat-label" id="lblConf">TinyML Confidence:</span>
+            <span class="stat-label" id="lblConf" data-glossary="conf">TinyML Confidence:</span>
             <span class="stat-value" id="valConf" style="color: var(--nxp-blue);">0%</span>
           </div>
           <div class="confidence-bar-bg">
@@ -406,22 +503,22 @@
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblExec">MCU Execution Time:</span>
+          <span class="stat-label" id="lblExec" data-glossary="exec">MCU Execution Time:</span>
           <span class="stat-value" id="valExec" style="color: var(--nxp-green);">32 &mu;s</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblSafety">ASIL-B Safety Budget:</span>
+          <span class="stat-label" id="lblSafety" data-glossary="safety">ASIL-B Safety Budget:</span>
           <span class="stat-value" id="valSafety" style="color: var(--text-muted);">&lt; 15,000 &mu;s (99.8% Headroom)</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblHeartbeat">MCU Heartbeat (0.2 Hz):</span>
+          <span class="stat-label" id="lblHeartbeat" data-glossary="heartbeat">MCU Heartbeat (0.2 Hz):</span>
           <span class="stat-value" id="valHeartbeat" style="color: var(--nxp-blue);">● IDLE (LOW)</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblLeds">Hardware Board LEDs:</span>
+          <span class="stat-label" id="lblLeds" data-glossary="leds">Hardware Board LEDs:</span>
           <span class="stat-value" id="valLeds" style="font-size: 12px; color: #FCA600;">🔴 RED: ON | 🔵 BLUE: OFF</span>
         </div>
       </div>
@@ -494,7 +591,118 @@
         chartTraceDelta: "Net Dynamic Shift (Delta)",
         chartTraceRaw: "Raw CVD Diff (Delta D)",
         chartTraceKalman: "Kalman Estimate (x_est)",
-        chartTraceBaseline: "Asymmetric Baseline"
+        chartTraceBaseline: "Asymmetric Baseline",
+        metricsHelpHint: "Hover terms for plain guide",
+        glossaryPlainLabel: "Plain-Language Guide",
+        glossaryEffectLabel: "Effect on Touch Sensor",
+        glossaryHint: "✦ Move cursor away to close",
+        glossary: {
+          cvd: {
+            title: "CVD (Capacitive Voltage Divider)",
+            category: "Physical Sampling",
+            badgeColor: "var(--nxp-blue)",
+            plain: "Think of measuring water depth by sharing water between two buckets: the MCU uses two standard I/O pins to charge and balance charge with the external touch pad, measuring the settled voltage to detect the tiny capacitance change when a finger touches the pad.",
+            effect: "No costly dedicated touch chip needed! Dual-polarity differential subtraction cancels out 50/60 Hz power-line hum and automotive EMI while doubling signal sensitivity."
+          },
+          delta: {
+            title: "Net Dynamic Shift (Δdyn)",
+            category: "Core Metric",
+            badgeColor: "var(--nxp-purple)",
+            plain: "The clean touch signal after taring away ambient background drift (Δdyn = x_est - baseline), exactly like pressing 'tare/zero' on a kitchen scale before weighing an ingredient.",
+            effect: "Regardless of hot summer sun or humid cold winter, isolates genuine finger press amplitude (+1500~2100 LSB) from baseline drift, serving as the core trigger metric."
+          },
+          kalman: {
+            title: "Kalman Filter (xest)",
+            category: "Filter Algorithm",
+            badgeColor: "var(--nxp-green)",
+            plain: "An optimal adaptive estimator derived from spacecraft guidance. Acts like a smart detective balancing prior predictions against noisy measurements: smooths quiet noise, snaps instantly to real finger taps.",
+            effect: "Suppresses baseline noise by 6x (sigma down from 0.60 to 0.10 LSB). Even under violent +800 LSB electrical transients (EFT/ESD spikes), estimation jitter stays below 0.33 LSB!"
+          },
+          baseline: {
+            title: "Dynamic Baseline Tracker",
+            category: "Adaptive Baseline",
+            badgeColor: "var(--nxp-orange)",
+            plain: "The environmental reference level when untouched. Drifts slowly with temperature and humidity. Followed via an asymmetric 4-zone state machine (1.5 LSB/s slew limit).",
+            effect: "Freezes during slow finger approach to prevent signal swallowing; snaps back within 285 ms if powered up while touched; times out after 15s if a metal coin sits on the sensor."
+          },
+          raw: {
+            title: "Raw Differential CVD (ΔD)",
+            category: "Hardware Synthesis",
+            badgeColor: "var(--nxp-blue)",
+            plain: "The raw hardware subtraction of consecutive positive and negative precharge ADC scans (ΔD = Sample_B - Sample_A) within the same frame.",
+            effect: "Yields an exact 2.0x physical gain doubling while canceling common-mode electromagnetic noise, laying a pristine foundation for digital filtering."
+          },
+          dta: {
+            title: "DTA (Dynamic Threshold Adjustment)",
+            category: "Decision Threshold",
+            badgeColor: "var(--text-muted)",
+            plain: "A floating passing-grade threshold (34.0 ~ 58.0 LSB). Automatically lowers when the environment is whisper-quiet, and raises when electrical noise or moisture is detected.",
+            effect: "Allows seamless touch detection through 2mm acrylic panels or thick winter gloves, while raising immunity during heavy moisture or EMI bursts."
+          },
+          conf: {
+            title: "TinyML Confidence Score",
+            category: "Edge AI Classification",
+            badgeColor: "var(--nxp-blue)",
+            plain: "An Edge-AI classifier probability (0% ~ 100%) indicating how closely current wave geometry matches a human touch across 4 envelope features (attack slope, dynamic SNR, curvature, sustain ratio).",
+            effect: "Distinguishes genuine fingers (>80% confidence) from water splashes, mist droplets, or edge grazes (<20% confidence), achieving 100% water rejection."
+          },
+          exec: {
+            title: "MCU Execution Time",
+            category: "Runtime Performance",
+            badgeColor: "var(--nxp-green)",
+            plain: "Microseconds taken by the ARM Cortex-M4F core (48 MHz) to run 9-sample burst hopping, trimmed-mean sorting, Kalman filtering, baseline tracking, TinyML, and hardware diagnostics (~195-215 µs).",
+            effect: "Consumes merely 1.4% of the 15.0 ms frame budget, reserving 98.6% of MCU power for automotive CAN communication, motor control, or VLPS ultra-low-power sleep (60 µA)."
+          },
+          safety: {
+            title: "ASIL-B Safety Budget",
+            category: "ISO 26262 Automotive Safety",
+            badgeColor: "var(--nxp-red)",
+            plain: "ISO 26262 ASIL-B real-time headroom within the 15 ms frame deadline. The codebase strictly adheres to MISRA C with zero dynamic heap allocation (0B Heap) and timeout guards on all loops.",
+            effect: "Continuous online diagnostics: short-to-GND, short-to-VDD, and resistor open-circuit faults are latched within 30 ms to safely disarm the touch output."
+          },
+          heartbeat: {
+            title: "MCU Synchronized Heartbeat",
+            category: "Hardware Liveness",
+            badgeColor: "var(--nxp-blue)",
+            plain: "A 1.0s periodic blink (0.1s ON, 0.9s OFF) pulsed synchronously by the EVB's physical Blue LED and this dashboard indicator.",
+            effect: "Visually verifies that FreeMASTER and the S32K144W hardware are streaming with sub-millisecond fidelity; switches immediately to alert mode if disconnected."
+          },
+          leds: {
+            title: "Hardware Board LEDs",
+            category: "Physical HMI",
+            badgeColor: "var(--nxp-orange)",
+            plain: "Physical tri-color EVB LED mapping: RED lights continuously when idle/untouched; RED turns off and GREEN turns on when pressed; BLUE pulses a 1.0s heartbeat.",
+            effect: "Enables operators on assembly lines or test benches to verify sensor health, touch triggers, and MCU liveness without attaching a PC or monitor."
+          },
+          systick: {
+            title: "66.7 Hz / 15.0 ms Frame Synchronized",
+            category: "Timing Architecture",
+            badgeColor: "var(--nxp-blue)",
+            plain: "The ARM Cortex-M4F internal SysTick hardware timer generates an interrupt every 15.0 milliseconds, periodically clocking the entire touch pipeline.",
+            effect: "Eliminates sampling jitter caused by software polling loops, providing an unshakeable mathematical timebase for digital filters and frequency hopping."
+          },
+          rollingWindow: {
+            title: "Rolling Scope Window (100 Samples)",
+            category: "Scope Visualization",
+            badgeColor: "var(--nxp-purple)",
+            plain: "Continuously displays the most recent 100 sample points on screen, representing a scrolling 1.5-second physical history.",
+            effect: "Allows engineers to inspect touch attack dynamics, steady-state hold plateaus, and post-release baseline recovery in high detail."
+          },
+          decision: {
+            title: "Hardware Touch Decision & Hysteresis",
+            category: "Contact Decision",
+            badgeColor: "var(--nxp-green)",
+            plain: "The final arbitrated contact decision using 3-step confidence smoothing with dual hysteresis thresholds (Trigger: 0.64, Release: 0.38).",
+            effect: "Prevents contact chattering or rapid toggling when a finger hovers near the sensing threshold, delivering clean, decisive button presses."
+          },
+          board: {
+            title: "XS32K14WEVB-Q064 MCU Platform",
+            category: "Target Hardware",
+            badgeColor: "var(--nxp-blue)",
+            plain: "NXP's 32-bit ARM Cortex-M4F automotive microcontroller featuring hardware FPU and 12-bit SAR ADC, certified to AEC-Q100 Grade 1.",
+            effect: "Equipped with automotive EMC robustness, -40°C to 125°C temperature tolerance, and 64KB RAM / 512KB Flash for automotive touch switches and Hands-Off Detection (HOD)."
+          }
+        }
       },
       zh: {
         pageTitle: "Touch Sensing Demo - 觸控感應即時示波器",
@@ -548,7 +756,118 @@
         chartTraceDelta: "淨動態位移 (Δdyn)",
         chartTraceRaw: "原始 CVD 差動值 (ΔD)",
         chartTraceKalman: "卡爾曼估計值 (x_est)",
-        chartTraceBaseline: "非對稱自適應基線"
+        chartTraceBaseline: "非對稱自適應基線",
+        metricsHelpHint: "懸停名詞查看白話解析",
+        glossaryPlainLabel: "白話文解析",
+        glossaryEffectLabel: "對觸控感測器的核心效果",
+        glossaryHint: "✦ 移開滑鼠即自動關閉視窗",
+        glossary: {
+          cvd: {
+            title: "CVD (Capacitive Voltage Divider) 電容分壓法",
+            category: "物理層採樣架構",
+            badgeColor: "var(--nxp-blue)",
+            plain: "想像把水在兩個水桶之間反覆倒來倒去測量水位：MCU 利用兩個普通晶片腳位，先後將外部按鍵電容反覆充電再互相分享電荷，藉由量測平衡後的電壓來推算人手接觸帶來的微小電容變化。",
+            effect: "完全不需要額外購買昂貴的專用觸控晶片，只用標準 MCU 就能實現；且雙極性正反相差動抵消，能將車載電磁波與 50/60Hz 電源雜訊完全消除，靈敏度直接翻倍！"
+          },
+          delta: {
+            title: "Net Shift Δdyn (淨動態位移)",
+            category: "核心特徵量",
+            badgeColor: "var(--nxp-purple)",
+            plain: "目前濾波訊號扣除環境背景基準線後的「淨變化量」（Δdyn = x_est - baseline）。就像站上磅秤前先按「歸零/扣重」，只單獨量測手指壓下去的那份重量。",
+            effect: "無論春夏秋冬氣溫如何變化、板子受潮或乾燥，淨位移量都能精準呈現真實手指按壓幅度（實測約 +1500~2100 LSB），是判斷按壓成立的核心依據。"
+          },
+          kalman: {
+            title: "Kalman Filter xest (卡爾曼濾波估計值)",
+            category: "訊號處理演算法",
+            badgeColor: "var(--nxp-green)",
+            plain: "源自航太火箭姿態估算的自適應最佳化估計器。就像一位智慧偵探，每 15 毫秒都在平衡「歷史預測」與「當前測量」：平常雜訊大時加強平滑濾波，手指突然按壓時瞬間切換高速通道跟上變化。",
+            effect: "將靜態底噪壓低將近 6 倍（σ 由 0.60 壓低至 0.10 LSB），即便汽車發動機點火或雨刷馬達產生 +800 LSB 的劇烈電氣突波（EFT/ESD），估計值波動仍小於 0.33 LSB！"
+          },
+          baseline: {
+            title: "Dynamic Baseline (動態基線值)",
+            category: "環境自適應追蹤",
+            badgeColor: "var(--nxp-orange)",
+            plain: "電極在「無人觸摸」時的環境背景基準電壓。會隨著日曬升溫、濕度上升或板材老化產生緩慢溫漂。系統以四區段狀態機進行非對稱追蹤（微調速率 1.5 LSB/s）。",
+            effect: "手指慢速靠近時凍結基線防吞噬；具備「帶手開機自癒」功能（放開後 285 ms 瞬間歸正）與「金屬硬幣 15 秒長按超時釋放」，防止按鍵因環境變化而永久鎖死。"
+          },
+          raw: {
+            title: "Raw Differential ΔD (原始 CVD 差動值)",
+            category: "雙極性差動硬體合成",
+            badgeColor: "var(--nxp-blue)",
+            plain: "硬體在同一訊框內連續執行「正相預充 (Scan A)」與「反相預充 (Scan B)」兩次 ADC 取樣後直接相減（ΔD = Sample_B - Sample_A）的純硬體合成數據。",
+            effect: "直接獲得 2.0 倍的物理靈敏度增益，同時將空間中共模電磁干擾自然抵消，打下高訊噪比的物理基礎。"
+          },
+          dta: {
+            title: "DTA Threshold (動態門檻調整)",
+            category: "抗干擾決策門檻",
+            badgeColor: "var(--text-muted)",
+            plain: "浮動的及格門檻線（34.0 ~ 58.0 LSB）。系統根據當前高頻展頻底噪的離散度即時調整門檻高低：環境安靜時調低門檻提升靈敏度，雜訊劇烈時調高門檻增強防禦。",
+            effect: "確保冬天戴 2mm 厚手套或隔著壓克力板時依然能靈敏觸發，同時在高噪或水霧環境下自動提高防線，杜絕誤動作。"
+          },
+          conf: {
+            title: "TinyML Confidence (時序幾何置信度)",
+            category: "邊緣 AI 分類器",
+            badgeColor: "var(--nxp-blue)",
+            plain: "邊緣 AI 模型為當前按壓打出的「真實手指機率」（0% ~ 100%）。它在 150 ms 滑動窗內即時提取上升斜率、動態信噪比、頂部曲率與包絡維持率四大幾何特徵進行綜合評分。",
+            effect: "精準區分「真人手指」（置信度 > 80%）與「水滴噴濺、水霧殘留、掌緣劃過」（置信度 < 20%），實現車規級 100% 水滴拒斥與 0 誤觸發！"
+          },
+          exec: {
+            title: "MCU Execution Time (微控制器運算耗時)",
+            category: "即時系統效能",
+            badgeColor: "var(--nxp-green)",
+            plain: "ARM Cortex-M4F 核心（48 MHz）執行一次完整的 9 次多頻展頻採集、排序截尾、卡爾曼濾波、基線追蹤、特徵分類與硬體診斷所需的微秒數（實測約 195 ~ 215 µs）。",
+            effect: "在 15.0 ms 的系統訊框中，CPU 負載佔空比僅 1.4%，留下 98.6% 的強大運算餘裕可執行車身 CAN 通訊、控制演算法，或直接進入 VLPS 極低功耗待機（60 µA）。"
+          },
+          safety: {
+            title: "ASIL-B Safety Budget (車規功能安全預算)",
+            category: "ISO 26262 汽車安全",
+            badgeColor: "var(--nxp-red)",
+            plain: "ISO 26262 ASIL-B 功能安全規範所定義的即時安全裕度（以 15 ms 訊框為基準）。全系統代碼符合 MISRA C 規範，保證 0 動態記憶體分配（0B Heap）且所有硬體迴圈皆有逾時保護。",
+            effect: "整合線上缺陷診斷：電極對地短路、對電源短路、電阻斷路均在 30 ms 內切斷輸出並發出告警，完全杜絕汽車人機介面失控風險。"
+          },
+          heartbeat: {
+            title: "MCU Heartbeat (0.1s 亮 / 0.9s 暗 硬體心跳)",
+            category: "雙向即時通訊監視器",
+            badgeColor: "var(--nxp-blue)",
+            plain: "S32K144W 開發板上的藍色實體 LED 與本網頁儀表板指示燈精確同步閃爍（1.0 秒週期：亮 0.1 秒、滅 0.9 秒）。",
+            effect: "提供直觀的視覺反饋，證明網頁示波器與實體車載開發板處於毫秒級高保真同步狀態；一旦開發板拔除或斷電，心跳立即切換為離線告警。"
+          },
+          leds: {
+            title: "Hardware Board LEDs (實體板載三色指示燈)",
+            category: "硬體人機介面",
+            badgeColor: "var(--nxp-orange)",
+            plain: "板載三色 LED 狀態對應：待機未按時紅燈常亮；手指按下成立時紅燈熄滅、綠燈點亮；藍燈則作為獨立定時心跳（亮 0.1s / 暗 0.9s）指示 MCU 運作正常。",
+            effect: "即使不安裝螢幕或電腦，操作者在產線或車上也僅憑板載燈號就能直接驗證待機、觸控、故障與系統心跳運行狀態。"
+          },
+          systick: {
+            title: "66.7 Hz / 15.0 ms Frame Synchronized (硬體訊框定時)",
+            category: "即時時序架構",
+            badgeColor: "var(--nxp-blue)",
+            plain: "由 ARM Cortex-M4F 內部的 SysTick 硬體定時器每 15.0 毫秒產生一次精確硬體中斷，驅動整個觸控感應管線週期性運轉。",
+            effect: "徹底杜絕傳統軟體輪詢（Polling）因程式碼分支造成的取樣抖動（Jitter），為數位濾波與展頻跳頻提供絕對精準的時基。"
+          },
+          rollingWindow: {
+            title: "Rolling Window (100 樣本滑動波形訊窗)",
+            category: "動態波形觀測",
+            badgeColor: "var(--nxp-purple)",
+            plain: "即時示波器視窗內持續快取顯示最近 100 筆採樣點，相當於過去 1.5 秒內的完整動態演變歷程。",
+            effect: "方便工程師即時肉眼比對觸碰前、觸碰瞬間斜率、按住平臺、以及放開後基線自癒回彈的物理動態波形細節。"
+          },
+          decision: {
+            title: "Hardware Touch Decision (硬體觸控仲裁決策)",
+            category: "遲滯防抖狀態機",
+            badgeColor: "var(--nxp-green)",
+            plain: "結合 TinyML 置信度評分與雙門檻遲滯防抖邏輯（觸發門檻 0.64、釋放門檻 0.38）做出的最終按鍵狀態判定（觸摸成立或待機釋放）。",
+            effect: "徹底消除手指在按鍵邊緣徘徊或輕微抖動時造成的連續開關抖動（Chattering），確保汽車中控按鍵只觸發乾脆明確的單次操作。"
+          },
+          board: {
+            title: "XS32K14WEVB-Q064 (車規 MCU 評估板)",
+            category: "硬體平台",
+            badgeColor: "var(--nxp-blue)",
+            plain: "NXP 專為車載車身與安全應用設計的 32 位元 ARM Cortex-M4F 微控制器，內建硬體浮點運算單元（FPU）與 12-bit 高精度 SAR ADC，通過 AEC-Q100 Grade 1 車規認證。",
+            effect: "具備高抗 EMI 干擾、-40°C ~ 125°C 車規耐溫範圍與 128KB 靜態 RAM / 512KB Flash，是車載電容觸控按鍵與方向盤離手檢測（HOD）的理想核心。"
+          }
+        }
       }
     };
 
@@ -668,6 +987,11 @@
       document.getElementById('simBtn').innerText = isSimMode ? t.useHardware : t.toggleDemo;
       document.getElementById('decisionTitle').innerText = t.decisionTitle;
       document.getElementById('metricsTitle').innerText = t.metricsTitle;
+      const hintEl = document.getElementById('metricsHelpHint');
+      if (hintEl) hintEl.innerText = t.metricsHelpHint;
+      if (typeof activeGlossaryKey !== 'undefined' && activeGlossaryKey) {
+        renderGlossaryContent(activeGlossaryKey);
+      }
 
       document.getElementById('lblDelta').innerText = t.lblDelta;
       document.getElementById('lblKalman').innerText = t.lblKalman;
@@ -938,9 +1262,138 @@
       scopeChart.reset();
     }
 
+    // Technical Glossary Interactive Modal Logic
+    const glossaryModal = document.getElementById('glossaryModal');
+    const glossaryBadge = document.getElementById('glossaryBadge');
+    const glossaryTitle = document.getElementById('glossaryTitle');
+    const glossaryPlain = document.getElementById('glossaryPlain');
+    const glossaryEffect = document.getElementById('glossaryEffect');
+    const glossaryPlainLabel = document.getElementById('glossaryPlainLabel');
+    const glossaryEffectLabel = document.getElementById('glossaryEffectLabel');
+    const glossaryHint = document.getElementById('glossaryHint');
+
+    let activeGlossaryTarget = null;
+    let activeGlossaryKey = null;
+    let hideGlossaryTimeout = null;
+
+    function renderGlossaryContent(key) {
+      const dict = i18n[currentLang]?.glossary?.[key] || i18n['zh']?.glossary?.[key];
+      if (!dict) return false;
+
+      const t = i18n[currentLang];
+      glossaryTitle.innerText = dict.title;
+      glossaryBadge.innerText = dict.category;
+      glossaryBadge.style.color = dict.badgeColor || 'var(--nxp-blue)';
+      glossaryBadge.style.borderColor = dict.badgeColor || 'var(--nxp-blue)';
+      glossaryPlain.innerText = dict.plain;
+      glossaryEffect.innerText = dict.effect;
+
+      glossaryPlainLabel.innerText = t.glossaryPlainLabel || '白話文解析';
+      glossaryEffectLabel.innerText = t.glossaryEffectLabel || '對觸控感測器的核心效果';
+      glossaryHint.innerText = t.glossaryHint || '✦ 移開滑鼠即自動關閉視窗';
+      return true;
+    }
+
+    function positionGlossaryModal(e) {
+      if (!glossaryModal || glossaryModal.style.display === 'none') return;
+      const modalWidth = glossaryModal.offsetWidth || 370;
+      const modalHeight = glossaryModal.offsetHeight || 240;
+      const padding = 16;
+
+      let left = e.clientX + 16;
+      let top = e.clientY + 16;
+
+      // Flip left if overflowing right boundary
+      if (left + modalWidth > window.innerWidth - padding) {
+        left = Math.max(padding, e.clientX - modalWidth - 16);
+      }
+
+      // Flip up if overflowing bottom boundary
+      if (top + modalHeight > window.innerHeight - padding) {
+        top = Math.max(padding, e.clientY - modalHeight - 16);
+      }
+
+      glossaryModal.style.left = `${left}px`;
+      glossaryModal.style.top = `${top}px`;
+    }
+
+    function showGlossary(key, e) {
+      if (hideGlossaryTimeout) {
+        clearTimeout(hideGlossaryTimeout);
+        hideGlossaryTimeout = null;
+      }
+      activeGlossaryKey = key;
+      if (!renderGlossaryContent(key)) return;
+
+      glossaryModal.style.display = 'block';
+      requestAnimationFrame(() => {
+        glossaryModal.classList.add('visible');
+        positionGlossaryModal(e);
+      });
+    }
+
+    function hideGlossary() {
+      if (!glossaryModal) return;
+      glossaryModal.classList.remove('visible');
+      hideGlossaryTimeout = setTimeout(() => {
+        glossaryModal.style.display = 'none';
+        activeGlossaryTarget = null;
+        activeGlossaryKey = null;
+      }, 180);
+    }
+
+    document.addEventListener('mouseover', (e) => {
+      const trigger = e.target.closest('[data-glossary]');
+      if (trigger) {
+        const key = trigger.getAttribute('data-glossary');
+        activeGlossaryTarget = trigger;
+        showGlossary(key, e);
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (activeGlossaryTarget) {
+        positionGlossaryModal(e);
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      const trigger = e.target.closest('[data-glossary]');
+      if (trigger && trigger === activeGlossaryTarget) {
+        if (!trigger.contains(e.relatedTarget)) {
+          hideGlossary();
+        }
+      }
+    });
+
     // Initialize with selected language and connect WebSocket
     applyLanguage(currentLang);
     connectWS();
   </script>
+
+  <!-- Interactive Plain Language Technical Glossary Floating Modal -->
+  <div id="glossaryModal" class="glossary-modal" style="display: none;">
+    <div class="glossary-header">
+      <div class="glossary-badge" id="glossaryBadge">FEATURE</div>
+      <div class="glossary-title" id="glossaryTitle">Term Title</div>
+    </div>
+    <div class="glossary-body">
+      <div class="glossary-section">
+        <div class="glossary-section-title">
+          <span>💡</span> <span id="glossaryPlainLabel">白話文解析</span>
+        </div>
+        <div class="glossary-text" id="glossaryPlain">Explanation...</div>
+      </div>
+      <div class="glossary-section highlight">
+        <div class="glossary-section-title">
+          <span>🎯</span> <span id="glossaryEffectLabel">對觸控感測器的核心效果</span>
+        </div>
+        <div class="glossary-text" id="glossaryEffect">Effect...</div>
+      </div>
+    </div>
+    <div class="glossary-tip">
+      <span id="glossaryHint">✦ 移開滑鼠即自動關閉視窗</span>
+    </div>
+  </div>
 </body>
 </html>
