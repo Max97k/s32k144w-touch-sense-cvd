@@ -114,6 +114,9 @@ void Touch_Init(void)
     /* Set default state: Idle Grounding (Output Low, 0V) */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_SENSE_B) | (1U << TOUCH_PIN_DRV_A);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_SENSE_B) | (1U << TOUCH_PIN_DRV_A);
+
+    /* Enable PMC Bandgap 1.00V reference buffer once during initialization */
+    IP_PMC->REGSC |= PMC_REGSC_BIASEN_MASK;
 }
 
 boolean Touch_Adc0_Calibrate(void)
@@ -160,8 +163,8 @@ uint32_t Touch_ReadBandgap_mV(uint16_t *out_raw_bandgap)
     uint32_t guard = 0U;
     uint32_t raw_bg;
 
-    /* Enable PMC Bandgap bias buffer (1.00V nominal reference) */
-    IP_PMC->REGSC |= PMC_REGSC_BIASEN_MASK;
+    /* Enter atomic critical section */
+    DisableAllInterrupts();
 
     /* Trigger ADC0 conversion on Channel 27 (Bandgap) */
     IP_ADC0->SC1[0] = TOUCH_ADC0_CH_BANDGAP;
@@ -172,6 +175,10 @@ uint32_t Touch_ReadBandgap_mV(uint16_t *out_raw_bandgap)
     }
 
     raw_bg = (uint32_t)(IP_ADC0->R[0] & 0x0FFFU);
+
+    /* Exit atomic critical section */
+    EnableAllInterrupts();
+
     if (out_raw_bandgap != NULL_PTR)
     {
         *out_raw_bandgap = (uint16_t)raw_bg;
@@ -203,8 +210,9 @@ Touch_RawSample_t Touch_AcquireSingleDiffCVD(uint8_t nop_balance_count)
     TOUCH_GPIO_BASE->PSOR = (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
 
-    /* ~60 ns precharge pulse */
-    NOP(); NOP(); NOP();
+    /* ~290 ns precharge pulse (14 NOPs @ 48 MHz) to fully charge finger capacitance */
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
 
     /* Synchronously disconnect drive: single instruction switches both pins to High-Z */
     TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
@@ -223,6 +231,13 @@ Touch_RawSample_t Touch_AcquireSingleDiffCVD(uint8_t nop_balance_count)
     sample.sample_A = (uint16_t)(IP_ADC0->R[0] & 0x0FFFU);
 
     /* =========================================================================
+     * Inter-Phase Ground Discharge (Bleed residual charge before Scan B)
+     * ========================================================================= */
+    TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+    TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
+
+    /* =========================================================================
      * Phase 2: Scan B (Negative Phase Precharge & Share)
      *   - PTC17 (TOUCH_A, Pad SW7) = VDD
      *   - PTC16 (TOUCH_B, Ref C533) = 0V
@@ -231,8 +246,9 @@ Touch_RawSample_t Touch_AcquireSingleDiffCVD(uint8_t nop_balance_count)
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
 
-    /* ~60 ns precharge pulse */
-    NOP(); NOP(); NOP();
+    /* ~290 ns precharge pulse (14 NOPs @ 48 MHz) */
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
 
     /* Synchronously disconnect drive: single instruction switches both pins to High-Z */
     TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
@@ -253,9 +269,15 @@ Touch_RawSample_t Touch_AcquireSingleDiffCVD(uint8_t nop_balance_count)
     /* =========================================================================
      * Phase 3: Idle Grounding
      * Immediately ground both electrodes to prevent floating EMI antenna pickup
+     * and force ~1.5 µs grounding bleed (72 cycles @ 48 MHz)
      * ========================================================================= */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+
+    for (volatile uint32_t bleed = 0U; bleed < 18U; bleed++)
+    {
+        NOP();
+    }
 
     /* Exit atomic critical section */
     EnableAllInterrupts();
@@ -281,7 +303,8 @@ int16_t Touch_MeasureBalanceDiff(uint8_t nop_count)
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A);
     TOUCH_GPIO_BASE->PSOR = (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
-    NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
 
     TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
     NopDelayExact(nop_count);
@@ -294,13 +317,14 @@ int16_t Touch_MeasureBalanceDiff(uint8_t nop_count)
     /* Discharge & settle briefly before Pass 2 */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
-    NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
 
     /* Pass 2: Identical Precharge -> High-Z -> nop_count -> Sample SE15 (TOUCH_A) */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A);
     TOUCH_GPIO_BASE->PSOR = (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
-    NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
+    NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP();
 
     TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
     NopDelayExact(nop_count);
@@ -310,9 +334,14 @@ int16_t Touch_MeasureBalanceDiff(uint8_t nop_count)
     while ((!(IP_ADC0->SC1[0] & ADC_SC1_COCO_MASK)) && (guard < TIMEOUT_GUARD_CYCLES)) guard++;
     v15 = (uint16_t)(IP_ADC0->R[0] & 0x0FFFU);
 
-    /* Return to Idle Grounding */
+    /* Return to Idle Grounding with 1.5 µs discharge */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+
+    for (volatile uint32_t bleed = 0U; bleed < 18U; bleed++)
+    {
+        NOP();
+    }
 
     EnableAllInterrupts();
 

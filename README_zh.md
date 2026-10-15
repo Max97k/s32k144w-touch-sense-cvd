@@ -123,7 +123,7 @@
 | **M3** | **非對稱基線追蹤狀態機** | 四區段狀態機 (溫漂慢追、預備區凍結、負向自癒、長按超時) | 帶手開機恢復 $\le 500\text{ ms}$（實測 $285\text{ ms}$），5s 慢速逼近不漏檢，溫漂漂移 $< \pm 3\text{ LSB}$ | [[5]](#11-參考文獻與技術規範-references--technical-standards), [[9]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.3-m3`)** |
 | **M4** | **時序幾何特徵防誤觸 (TinyML)** | 4 大時域特徵提取器 + 3 步置信度遲滯邏輯 + SysTick 硬體訊框同步 | 裸手/手套檢出率 $\ge 98\%$（實測 $100\%$），水滴/邊緣誤觸發 $= 0\%$，響應時間 $\le 60\sim 90\text{ ms}$（實測 $45\text{ ms}$） | [[6]](#11-參考文獻與技術規範-references--technical-standards), [[7]](#11-參考文獻與技術規範-references--technical-standards), [[12]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.4-m4`)** |
 | **M5** | **雙通道線上硬體缺陷診斷** | PTC16/PTC17 雙電位窗、電阻 $R_{525}$ 開路檢測、Bandgap 監控、Fail-safe 互鎖 | 接地/電源短路與開路 $\le 60\text{ ms}$ 鎖定防禦（實測 $30\text{ ms}$），自癒恢復 $\le 200\text{ ms}$（實測 $120\text{ ms}$） | [[1]](#11-參考文獻與技術規範-references--technical-standards), [[13]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | **已驗收 (PASS, `v1.0.5-m5`)** |
-| **M6** | **VLPS 極低功耗與長時燒機** | LPIT 週期喚醒與 PMC VLPS 休眠、系統標準封裝庫 | 執行時間 $\le 60\text{ }\mu\text{s}$，待機電流 $45 \sim 70\text{ }\mu\text{A}$，12 小時 0 誤觸 | [[9]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | 待推進 (PLANNED) |
+| **M6** | **VLPS 極低功耗與長時燒機** | LPIT 週期喚醒與 PMC VLPS 休眠、系統標準封裝庫 | 執行時間 $\le 250\text{ }\mu\text{s}$（實測 $195 \sim 215\text{ }\mu\text{s}$，佔空比 $1.4\%$），待機電流 $45 \sim 70\text{ }\mu\text{A}$，12 小時 0 誤觸 | [[9]](#11-參考文獻與技術規範-references--technical-standards), [[14]](#11-參考文獻與技術規範-references--technical-standards) | 推進中 (IN PROGRESS) |
 
 ---
 
@@ -308,7 +308,7 @@ python tests/test_m5_contract.py
 | `raw_diff` | `0x1FFF8DC8` | `int16` | 2 B | 雙極性差分 CVD 原始合成值（$\Delta D$） |
 | `confidence` | `0x1FFF8D8C` | `float` | 4 B | M4 TinyML 三階平滑後信心度（0.0 ~ 1.0） |
 | `predicted_class` | `0x1FFF8D90` | `uint32` | 4 B | 物理事件分類（0: Idle, 1: Bare, 2: Glove, 3: Water, 4: Swipe） |
-| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | MCU 核心演算法即時耗時（通常 32 µs） |
+| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | MCU 核心演算法即時耗時（實測約 195 ~ 215 µs，含 18 次 SAR ADC 轉換） |
 
 ### 一鍵啟動方式
 

@@ -123,7 +123,9 @@ void Telemetry_SendInt(int32_t value)
     if (value < 0)
     {
         Telemetry_SendChar('-');
-        Telemetry_SendUInt((uint32_t)(-value));
+        /* MISRA C compliant: safe negation without signed integer overflow when value == INT32_MIN */
+        uint32_t uval = (uint32_t)(-(value + 1)) + 1U;
+        Telemetry_SendUInt(uval);
     }
     else
     {

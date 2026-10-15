@@ -54,6 +54,7 @@ class PythonBaselineTracker:
         self.active_zone = 0  # 0: DRIFT, 1: APPROACH, 2: TOUCH, 3: TIMEOUT, 4: NEG_RECOVERY
         self.hold_cycle_count = 0
         self.neg_cycle_count = 0
+        self.approach_cycle_count = 0
         self.force_reset_flag = False
 
     def update(self, x_est, delta_time_ms=15):
@@ -65,6 +66,7 @@ class PythonBaselineTracker:
         if delta < self.threshold_neg:
             self.neg_cycle_count += 1
             self.hold_cycle_count = 0
+            self.approach_cycle_count = 0
             self.is_touched = False
             self.active_zone = 4
 
@@ -86,6 +88,7 @@ class PythonBaselineTracker:
         if touch_cond:
             self.is_touched = True
             self.hold_cycle_count += 1
+            self.approach_cycle_count = 0
 
             # 15.0 sec / 0.015 sec = 1000 cycles
             if self.hold_cycle_count >= 1000:
@@ -106,9 +109,21 @@ class PythonBaselineTracker:
 
         # Zone 2: Finger Approaching Pre-Touch Zone (0.4 * TH <= delta < TH)
         if delta >= self.threshold_prepare:
+            self.approach_cycle_count += 1
+            # 8.0 sec / 0.015 sec = 533 cycles (anti-lockup for water/hover)
+            if self.approach_cycle_count >= 533:
+                self.baseline = x_est
+                self.delta = 0.0
+                self.approach_cycle_count = 0
+                self.force_reset_flag = True
+                self.active_zone = 3
+                return 0.0
+
             self.active_zone = 1
             self.delta = delta
             return delta
+
+        self.approach_cycle_count = 0
 
         # Zone 1: Ambient Slow Drift
         self.active_zone = 0

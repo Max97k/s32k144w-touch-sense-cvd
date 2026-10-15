@@ -232,7 +232,7 @@ int main(void)
 
     Telemetry_SendString("[*] Milestone 5 Hardware Defect Diagnostics Initialized:\r\n");
     Telemetry_SendString("    - Physical Voltage Limits: 300 ~ 3800 LSB (Short to GND/VDD)\r\n");
-    Telemetry_SendString("    - R525 Integrity Window:   <= 80 LSB Balance Delta\r\n");
+    Telemetry_SendString("    - R525 Integrity Window:   < 250 LSB Balance Delta\r\n");
     Telemetry_SendString("    - VREFH Supply Window:     4750 ~ 5250 mV (+/- 5%)\r\n");
     Telemetry_SendString("    - Reaction Time:           <= 3 cycles (<= 45 ms, Target <= 60 ms)\r\n");
     Telemetry_SendString("    - Auto-Recovery Time:      8 cycles (120 ms, Target <= 200 ms)\r\n");

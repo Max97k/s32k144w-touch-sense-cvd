@@ -50,6 +50,16 @@ class PythonKalmanFilter:
         x_pred = self.x_est
         p_pred = self.p_est + self.q_proc
 
+        # Fast-Path: Large consistent step (real finger ~+1300 LSB) bypasses slow convergence
+        innov = z_meas - x_pred
+        abs_innov = abs(innov)
+        if (abs_innov > 100.0) and (spread < (0.25 * abs_innov)):
+            self.x_est = float(z_meas)
+            self.p_est = self.r_base
+            self.k_gain = 0.99
+            self.spread = float(spread)
+            return self.x_est
+
         # 2. Adaptive Measurement Noise Variance
         r_k = self.r_base + (self.alpha * (spread * spread))
 

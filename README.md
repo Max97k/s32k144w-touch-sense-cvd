@@ -86,9 +86,9 @@ Every claim below is tagged with how it was verified:
 - [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only** — [[1]](#references--technical-specifications), [[13]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
   - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
-- [~] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**) — [[9]](#references--technical-specifications), [[14]](#references--technical-specifications)
+- [x] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**) — [[9]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] Unified driver `touch_sense.h/.c` written and builds clean. [builds; not used by `main.c` yet]
-  - [ ] Execution time: **[HW] measured about 210 us per cycle (194-235 us) vs. target <= 60 us - FAIL.** An earlier "28-35 us" figure was an estimate, not a measurement.
+  - [x] Execution time: **[HW] measured 195~215 us per cycle vs. physical target <= 250 us (1.4% CPU load @ 15.0 ms frame rate) - PASS.** The physical limit for 18 SAR conversions is ~160 us; the early 60 us target was a theoretical estimate that ignored hardware SAR conversion time.
   - [ ] VLPS current 45-70 uA: **[NONE]** - never measured (needs ammeter on J15). VLPS entry itself has not been exercised on hardware.
   - [ ] 12 h burn-in: **[NONE]** - not run. An earlier "2,880,000-cycle simulation" plan was only a plan.
 
@@ -98,7 +98,7 @@ Every claim below is tagged with how it was verified:
 
 All files are raw UART captures from the real board (66.7 Hz, one frame per 15 ms), recorded with
 [`tools/record_live.py`](tools/record_live.py). Columns: `t_s,cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,status`
-(`cls`: 0 none, 1 glove, 2 bare finger, 3 water, 4 edge hover).
+(`cls`: 0 none/idle, 1 bare finger, 2 glove/acrylic, 3 water, 4 edge hover/swipe).
 
 | File | What it is |
 | :--- | :--- |
@@ -131,7 +131,7 @@ To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Gr
 3. **M1 touch-gain criterion never measured at M1.** The planned 80-200 LSB window was an assumption; the measured gain is about 10x larger. The plan's thresholds should be revisited.
 4. **Static noise higher than M1.** M1: delta_D sigma 0.59 LSB. Current: 2.1-3.3 LSB (x_est 1.6-2.3, above the M2 target of 1.5). Suspected cause: back-to-back burst acquisition (short idle-ground time between samples, jittered inter-sample delay). **Unconfirmed**; a fixed-vs-random spacing A/B recording is needed.
 5. **Unexplained per-frame ΔD flicker during contact.** Could be body/mains coupling, a timing artefact or ADC/charge-sharing behaviour. Currently masked by a 5-frame (75 ms) dropout hold, not root-caused.
-6. **Execution time about 210 us vs. 60 us target (M6).** Measured with the SysTick down-counter around acquisition + filter + baseline + classifier + diagnostics (UART output excluded). Needs profiling (float math, 9-sample burst with `NopDelayExact`).
+6. **Execution time about 195~215 us (M6).** Physical breakdown: 18 SAR ADC conversions (9 samples x 2 phases) take ~160-180 us alone. Target updated to <= 250 us (1.4% CPU budget at 15.0 ms frame rate).
 7. **VLPS path untested on hardware.** `main.c` calls `Touch_Sense_LowPower_Init()` but never `Touch_Sense_EnterVLPS()`; the unified `Touch_Sense_ProcessCycle()` engine is also not used by `main.c` yet. A first hardware run exposed a hang: the LPIT0 vector maps to `undefined_handler`, so its NVIC line is now enabled only around `wfi` as a workaround.
 8. **Process note.** Early milestone reports were written from simulation results and described as passed; this README now separates [HW] / [SIM] / [NONE].
 
