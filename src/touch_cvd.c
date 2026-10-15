@@ -101,7 +101,13 @@ void Touch_Init(void)
     LED_BLUE_GPIO->PDDR  |= (1U << LED_BLUE_PIN);
 
     /* 3. Configure Touch Pins (PTC16 = TOUCH_B/SE14, PTC17 = TOUCH_A/SE15)
-     * Internal pull-up/pull-down MUST be disabled for high-impedance capacitive divider */
+     * Internal pull-up/pull-down MUST be disabled for high-impedance capacitive divider.
+     * Note on MUX(1) Digital Input Buffer:
+     *   Keeping MUX=1 (GPIO) allows single-cycle atomic PDDR direction switching.
+     *   When balanced at ~0.5*VDD during High-Z, the CMOS Schmitt trigger operates near threshold.
+     *   To prevent shoot-through current in low power / VLPS (M6) and thermal drift (M3),
+     *   pins MUST ALWAYS be returned to Idle Grounding (0V) when acquisition is not actively running.
+     */
     TOUCH_PORT_BASE->PCR[TOUCH_PIN_SENSE_B] = PORT_PCR_MUX(1U) | PORT_PCR_PE(0U);
     TOUCH_PORT_BASE->PCR[TOUCH_PIN_DRV_A]   = PORT_PCR_MUX(1U) | PORT_PCR_PE(0U);
 
@@ -134,7 +140,8 @@ boolean Touch_Adc0_Calibrate(void)
         guard++;
     }
 
-    if (guard >= TIMEOUT_GUARD_CYCLES)
+    /* Check both timeout guard and hardware CALF (Calibration Failed) flag */
+    if ((guard >= TIMEOUT_GUARD_CYCLES) || ((IP_ADC0->SC3 & ADC_SC3_CALF_MASK) != 0U))
     {
         return (boolean)FALSE;
     }
@@ -263,36 +270,47 @@ Touch_RawSample_t Touch_AcquireSingleDiffCVD(uint8_t nop_balance_count)
 
 int16_t Touch_MeasureBalanceDiff(uint8_t nop_count)
 {
-    uint16_t v14;
-    uint16_t v15;
-    uint32_t guard;
+    uint16_t v14 = 0U;
+    uint16_t v15 = 0U;
+    volatile uint32_t guard;
     int16_t diff;
 
     DisableAllInterrupts();
 
-    /* Scan A precharge */
+    /* Pass 1: Precharge -> High-Z -> nop_count -> Sample SE14 (TOUCH_B) */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A);
     TOUCH_GPIO_BASE->PSOR = (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
     NOP(); NOP(); NOP();
 
-    /* Synchronous High-Z */
     TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
     NopDelayExact(nop_count);
 
-    /* Read SE14 */
     IP_ADC0->SC1[0] = TOUCH_ADC0_CH_SENSE_B;
     guard = 0U;
     while ((!(IP_ADC0->SC1[0] & ADC_SC1_COCO_MASK)) && (guard < TIMEOUT_GUARD_CYCLES)) guard++;
     v14 = (uint16_t)(IP_ADC0->R[0] & 0x0FFFU);
 
-    /* Read SE15 */
+    /* Discharge & settle briefly before Pass 2 */
+    TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+    TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+    NOP(); NOP(); NOP();
+
+    /* Pass 2: Identical Precharge -> High-Z -> nop_count -> Sample SE15 (TOUCH_A) */
+    TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A);
+    TOUCH_GPIO_BASE->PSOR = (1U << TOUCH_PIN_SENSE_B);
+    TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
+    NOP(); NOP(); NOP();
+
+    TOUCH_GPIO_BASE->PDDR &= ~((1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B));
+    NopDelayExact(nop_count);
+
     IP_ADC0->SC1[0] = TOUCH_ADC0_CH_DRV_A;
     guard = 0U;
     while ((!(IP_ADC0->SC1[0] & ADC_SC1_COCO_MASK)) && (guard < TIMEOUT_GUARD_CYCLES)) guard++;
     v15 = (uint16_t)(IP_ADC0->R[0] & 0x0FFFU);
 
-    /* Idle Grounding */
+    /* Return to Idle Grounding */
     TOUCH_GPIO_BASE->PCOR = (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
     TOUCH_GPIO_BASE->PDDR |= (1U << TOUCH_PIN_DRV_A) | (1U << TOUCH_PIN_SENSE_B);
 
@@ -327,4 +345,5 @@ void Touch_M1_NOP_Sweep(Touch_M1_Report_t *report)
     }
 
     report->optimal_nop = best_nop;
+    report->min_balance_diff = min_diff;
 }

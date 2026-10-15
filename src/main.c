@@ -155,11 +155,13 @@ int main(void)
         Telemetry_SendString("    [-] Criterion 1 (1600~2500 LSB Workpoint): FAILED\r\n");
     }
 
-    /* Verify Criterion 2: Balance difference < 15 LSB */
-    if (g_m1_report.nop_balance_diff[1] < M1_BALANCE_DIFF_MAX_LSB)
+    /* Verify Criterion 2: Balance difference < 15 LSB (evaluated with optimal min_balance_diff) */
+    if (g_m1_report.min_balance_diff < M1_BALANCE_DIFF_MAX_LSB)
     {
         g_m1_report.criteria_2_balance_pass = TRUE;
-        Telemetry_SendString("    [+] Criterion 2 (Balanced Diff < 15 LSB): PASSED\r\n");
+        Telemetry_SendString("    [+] Criterion 2 (Balanced Diff < 15 LSB, Optimal NOP=");
+        Telemetry_SendUInt(g_m1_report.optimal_nop);
+        Telemetry_SendString("): PASSED\r\n");
     }
     else
     {

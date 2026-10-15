@@ -37,6 +37,11 @@ extern "C" {
 #define TOUCH_ADC0_CH_DRV_A       (15U)   /* ADC0_SE15 (for balance verification) */
 #define TOUCH_ADC0_CH_BANDGAP     (27U)   /* Internal 1.0V Bandgap reference */
 
+/* ADC Status and Control 3 Calibration Failed Flag (Bit 6, per S32K1xx RM & AN12217) */
+#ifndef ADC_SC3_CALF_MASK
+#define ADC_SC3_CALF_MASK         (0x40U)
+#endif
+
 /* M1 Quantitative Pass Criteria Thresholds (from milestone plan) */
 #define M1_UNTOUCHED_MIN_LSB      (1600)  /* 0.4 * VDD (12-bit = 4095) */
 #define M1_UNTOUCHED_MAX_LSB      (2500)  /* 0.6 * VDD */
@@ -73,6 +78,7 @@ typedef struct {
     uint16_t bandgap_raw;
     uint32_t vrefh_mv;
     uint8_t  optimal_nop;
+    int16_t  min_balance_diff;    /* Optimal minimum balance diff across NOP sweep */
     int16_t  nop_balance_diff[4]; /* Balance error for NOP = 4, 8, 12, 16 */
     uint16_t baseline_sample_A;
     uint16_t baseline_sample_B;
