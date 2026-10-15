@@ -68,6 +68,7 @@ void Touch_TinyML_Init(Touch_TinyML_Classifier_t *clf)
     clf->raw_confidence                 = 0.0f;
     clf->smoothed_confidence            = 0.0f;
     clf->confidence                     = 0.0f;
+    clf->miss_cnt                       = 0U;
     clf->predicted_class                = TOUCH_CLASS_IDLE;
     clf->is_valid_touch                 = FALSE;
 }
@@ -180,8 +181,8 @@ boolean Touch_TinyML_Update(Touch_TinyML_Classifier_t *clf, float delta, float s
         p_inst = 0.0f;
         pred_class = TOUCH_CLASS_IDLE;
     }
-    else if ((mean_spread_4 > TOUCH_FEAT_MAX_WATER_SPREAD) ||
-             (spike_rejected && (clf->active_sustain_cycles <= 1U)) ||
+    else if (((mean_spread_4 > TOUCH_FEAT_MAX_WATER_SPREAD) && (delta < TOUCH_MIN_BARE_DELTA_LSB)) ||
+             (spike_rejected && (clf->active_sustain_cycles <= 1U) && (delta < TOUCH_MIN_BARE_DELTA_LSB)) ||
              ((delta < dta_th) && (max_attack_slope < TOUCH_FEAT_MIN_ATTACK_SLOPE)) ||
              ((dyn_snr < TOUCH_FEAT_MIN_DYNAMIC_SNR) && (delta < 65.0f)))
     {
@@ -191,9 +192,10 @@ boolean Touch_TinyML_Update(Touch_TinyML_Classifier_t *clf, float delta, float s
         p_inst = 0.08f;
         pred_class = TOUCH_CLASS_REJECT_WATER;
     }
-    else if ((sustain_ratio < TOUCH_FEAT_MIN_SUSTAIN_RATIO) ||
-             ((clf->active_sustain_cycles <= 1U) && (diff1_a < -8.0f)) ||
-             ((plateau_var > TOUCH_FEAT_MAX_CURVATURE_RATIO) && (clf->active_sustain_cycles < 3U)))
+    else if ((delta < 150.0f) &&
+             ((sustain_ratio < TOUCH_FEAT_MIN_SUSTAIN_RATIO) ||
+              ((clf->active_sustain_cycles <= 1U) && (diff1_a < -8.0f)) ||
+              ((plateau_var > TOUCH_FEAT_MAX_CURVATURE_RATIO) && (clf->active_sustain_cycles < 3U))))
     {
         /* Edge Grazing / Accidental Brush-By Signature:
          * - Brief 1~2 cycle transient peak that immediately reverses (diff1_a < -8 LSB or low sustain_ratio) */
@@ -248,11 +250,23 @@ boolean Touch_TinyML_Update(Touch_TinyML_Classifier_t *clf, float delta, float s
     {
         if ((conf_avg < TOUCH_CONF_RELEASE_THRESH) || (delta < (dta_th * TOUCH_DTA_HYSTERESIS_RATIO)))
         {
-            clf->is_valid_touch = FALSE;
+            if (clf->miss_cnt < 255U)
+            {
+                clf->miss_cnt++;
+            }
+            if (clf->miss_cnt >= 4U)
+            {
+                clf->is_valid_touch = FALSE;
+            }
+        }
+        else
+        {
+            clf->miss_cnt = 0U;
         }
     }
     else
     {
+        clf->miss_cnt = 0U;
         if ((conf_avg >= TOUCH_CONF_TRIGGER_THRESH) && (clf->active_sustain_cycles >= 2U))
         {
             clf->is_valid_touch = TRUE;

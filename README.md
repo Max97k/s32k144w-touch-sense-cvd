@@ -110,6 +110,7 @@ All files are raw UART captures from the real board (66.7 Hz, one frame per 15 m
 | [`tests/m_press_release_test.csv`](tests/m_press_release_test.csv) | 40 s, LED-cued: 3 x (4 s press, 4 s release) with bare finger |
 | [`tests/m_water_test.csv`](tests/m_water_test.csv) | 100 s, LED-cued: prep / water drops / wipe dry (water test) |
 | [`tests/m_post_expert_test.csv`](tests/m_post_expert_test.csv) | 5 s post-expert integration live UART hardware capture @ 66.8 Hz |
+| [`tests/m_finger_press_expert_v4.csv`](tests/m_finger_press_expert_v4.csv) | **[HW]** 42 s LED-cued 3-trial press validation after water/swipe guards & 4-frame hold (96.8%~99.6% solid duty, 0 false triggers) |
 | [`m4_envelope_dataset.csv`](m4_envelope_dataset.csv) | **[SIM]** M4 140-trial validation dataset (Bare finger, 2mm acrylic / glove, water droplets, edge swipes) |
 | [`m4_tinyml_multiclass_dataset.csv`](m4_tinyml_multiclass_dataset.csv), [`m5_fault_injection_log.csv`](m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
 

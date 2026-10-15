@@ -104,6 +104,7 @@ typedef struct {
     float                   smoothed_confidence;                  /*!< 3-step moving average confidence [0..1] */
     Touch_TinyML_Class_t    predicted_class;                      /*!< Current classified physical event */
     boolean                 is_valid_touch;                       /*!< Final debounced touch decision output */
+    uint8_t                 miss_cnt;                             /*!< Consecutive dropout cycles (4-cycle hold = 60 ms anti-flicker) */
     float                   confidence;                           /*!< Backward-compatibility alias for smoothed_confidence */
 } Touch_TinyML_Classifier_t;
 

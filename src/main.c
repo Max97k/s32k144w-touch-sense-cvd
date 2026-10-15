@@ -21,9 +21,9 @@
 #include "touch_sense.h"
 #include "uart_telemetry.h"
 
-/* Define WATER_TEST_MODE to enable the cue-LED schedule used for hardware recording sessions
- * (Green=idle, Blue=press/drop, Red=done). Off by default so LEDs show the real touch state. */
-/* #define WATER_TEST_MODE */
+/* Define CUE_TEST_MODE to enable the cue-LED schedule used for hardware recording sessions
+ * (Green=idle, Blue=press, Red=done). */
+#define CUE_TEST_MODE
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
 volatile Touch_M1_Report_t          g_m1_report;
@@ -345,7 +345,7 @@ int main(void)
             }
         }
 
-#ifdef WATER_TEST_MODE
+#if defined(WATER_TEST_MODE) || defined(CUE_TEST_MODE)
         /* Temporary cue schedule (66.7 Hz): Green=idle/release, Blue=press and hold (4 s) x3, Red=done */
         if ((g_cycle_counter >= 667U) && (g_cycle_counter < 2267U))
         {

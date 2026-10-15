@@ -65,6 +65,7 @@ class PythonTinyMLClassifier:
         self.smoothed_confidence = 0.0
         self.predicted_class = self.TOUCH_CLASS_IDLE
         self.is_valid_touch = False
+        self.miss_cnt = 0
 
     @staticmethod
     def _clamp(v, lo, hi):
@@ -129,13 +130,13 @@ class PythonTinyMLClassifier:
         if delta < 15.0:
             p_inst = 0.0
             pred_class = self.TOUCH_CLASS_IDLE
-        elif (mean_spread_4 > 3.2 or
-              (spike_rejected and self.active_sustain_cycles <= 1) or
+        elif (((mean_spread_4 > 3.2 and delta < 78.0)) or
+              (spike_rejected and self.active_sustain_cycles <= 1 and delta < 78.0) or
               (delta < dta_th and max_attack_slope < 8.5) or
               (dyn_snr < 14.0 and delta < 65.0)):
             p_inst = 0.08
             pred_class = self.TOUCH_CLASS_REJECT_WATER
-        elif (sustain_ratio < 0.68 or
+        elif (delta < 150.0) and (sustain_ratio < 0.68 or
               (self.active_sustain_cycles <= 1 and diff1_a < -8.0) or
               (plateau_var > 1.35 and self.active_sustain_cycles < 3)):
             p_inst = 0.12
@@ -165,8 +166,13 @@ class PythonTinyMLClassifier:
 
         if self.is_valid_touch:
             if conf_avg < 0.38 or delta < (dta_th * 0.78):
-                self.is_valid_touch = False
+                self.miss_cnt += 1
+                if self.miss_cnt >= 4:
+                    self.is_valid_touch = False
+            else:
+                self.miss_cnt = 0
         else:
+            self.miss_cnt = 0
             if conf_avg >= 0.64 and self.active_sustain_cycles >= 2:
                 self.is_valid_touch = True
 
