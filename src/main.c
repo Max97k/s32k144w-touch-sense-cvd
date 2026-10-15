@@ -14,6 +14,7 @@
 #include "Clock_Ip.h"
 #include "touch_cvd.h"
 #include "touch_filter.h"
+#include "touch_baseline.h"
 #include "uart_telemetry.h"
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
@@ -21,6 +22,7 @@ volatile Touch_M1_Report_t          g_m1_report;
 volatile Touch_RawSample_t          g_current_sample;
 volatile Touch_Kalman_t             g_kalman_filter;
 volatile Touch_M2_FilteredSample_t  g_m2_sample;
+volatile Touch_BaselineTracker_t    g_baseline_tracker;
 volatile uint16_t                   g_lfsr_state = TOUCH_LFSR_DEFAULT_SEED;
 volatile uint32_t                   g_cycle_counter = 0U;
 volatile boolean                    g_touch_active  = FALSE;
@@ -187,8 +189,22 @@ int main(void)
     Telemetry_SendString("    - Burst Samples (N):     9 (Coprime Multi-Frequency Jitter)\r\n");
     Telemetry_SendString("    - Alpha-Trimmed Mean:    Discard 2 min, 2 max, avg middle 5\r\n");
 
-    /* 9. Live Real-Time Continuous Acquisition & Filtering Loop */
-    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & Filtering Loop (Touch SW7 to test)...\r\n");
+    /* 9. Initialize 4-Zone Asymmetric Baseline Tracker (Milestone 3) */
+    Touch_Baseline_Init((Touch_BaselineTracker_t *)&g_baseline_tracker,
+                        (float)g_m1_report.baseline_delta,
+                        TOUCH_THRESH_TOUCH_LSB);
+
+    Telemetry_SendString("[*] Milestone 3 Asymmetric Baseline Tracker Initialized:\r\n");
+    Telemetry_SendString("    - Initial Baseline:      ");
+    Telemetry_SendInt(g_m1_report.baseline_delta);
+    Telemetry_SendString(" LSB\r\n");
+    Telemetry_SendString("    - Touch Threshold (TH):  50.0 LSB (Release: 40.0 LSB)\r\n");
+    Telemetry_SendString("    - Approach Freeze (0.4): 20.0 LSB\r\n");
+    Telemetry_SendString("    - Neg Fast Healing TH:   -15.0 LSB (<= 300 ms)\r\n");
+    Telemetry_SendString("    - Hold Timeout Limit:    15.0 sec (Forced Baseline Reset)\r\n");
+
+    /* 10. Live Real-Time Continuous Acquisition, Filtering & Baseline Tracking Loop */
+    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & Baseline Tracking Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
 
     while (1)
@@ -218,26 +234,26 @@ int main(void)
         g_m2_sample.spread      = spread;
         g_m2_sample.kalman_gain = g_kalman_filter.k_gain;
 
-        /* Touch detection based on filtered Kalman state x_est */
-        float net_shift_filtered = x_est - (float)g_m1_report.baseline_delta;
-        int16_t net_shift_raw    = g_current_sample.delta_D - g_m1_report.baseline_delta;
+        /* Milestone 3: 4-Zone Asymmetric Dynamic Baseline Tracking */
+        float dynamic_delta = Touch_Baseline_Update((Touch_BaselineTracker_t *)&g_baseline_tracker, x_est, 15U);
+        g_touch_active = Touch_Baseline_IsTouched((Touch_BaselineTracker_t *)&g_baseline_tracker);
 
-        if (net_shift_filtered >= 50.0f)
+        int16_t net_shift_raw = g_current_sample.delta_D - g_m1_report.baseline_delta;
+
+        if (g_touch_active)
         {
-            g_touch_active = TRUE;
-            /* Turn on Blue LED when touched, Green off */
+            /* Active Touch: Blue LED ON, Green LED OFF */
             Touch_SetStatusLeds(FALSE, FALSE, TRUE);
 
-            if (net_shift_filtered >= (float)M1_TOUCH_DELTA_MIN_LSB)
+            if (dynamic_delta >= (float)M1_TOUCH_DELTA_MIN_LSB)
             {
                 g_m1_report.criteria_3_gain_pass = TRUE;
-                g_m1_report.touch_delta_shift = (int16_t)net_shift_filtered;
+                g_m1_report.touch_delta_shift = (int16_t)dynamic_delta;
             }
         }
         else
         {
-            g_touch_active = FALSE;
-            /* Turn on Green LED when idle */
+            /* Released / Idle / Approaching: Green LED ON, Blue LED OFF */
             Touch_SetStatusLeds(FALSE, TRUE, FALSE);
         }
 
@@ -264,9 +280,22 @@ int main(void)
             Telemetry_SendFloat(spread, 1U);
             Telemetry_SendString(",K:");
             Telemetry_SendFloat(g_kalman_filter.k_gain, 3U);
-            Telemetry_SendString(",FiltShift:");
-            Telemetry_SendFloat(net_shift_filtered, 2U);
+            Telemetry_SendString(",Delta:");
+            Telemetry_SendFloat(dynamic_delta, 2U);
             Telemetry_SendString("\r\n");
+
+            /* Milestone 3 Asymmetric Baseline Telemetry Stream */
+            Telemetry_SendString("M3,Base:");
+            Telemetry_SendFloat(g_baseline_tracker.baseline, 2U);
+            Telemetry_SendString(",Delta:");
+            Telemetry_SendFloat(dynamic_delta, 2U);
+            Telemetry_SendString(",Zone:");
+            Telemetry_SendUInt((uint32_t)g_baseline_tracker.active_zone);
+            Telemetry_SendString(",HoldCnt:");
+            Telemetry_SendUInt(g_baseline_tracker.hold_cycle_count);
+            Telemetry_SendString(",NegCnt:");
+            Telemetry_SendUInt(g_baseline_tracker.neg_cycle_count);
+            Telemetry_SendString(g_touch_active ? ",Touch:1\r\n" : ",Touch:0\r\n");
         }
     }
 
