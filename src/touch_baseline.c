@@ -32,10 +32,11 @@ void Touch_Baseline_Init(Touch_BaselineTracker_t *tracker, float initial_baselin
     tracker->delta             = 0.0f;
     tracker->is_touched        = FALSE;
     tracker->active_zone       = TOUCH_ZONE_IDLE_DRIFT;
-    tracker->hold_cycle_count  = 0U;
-    tracker->neg_cycle_count   = 0U;
-    tracker->total_updates     = 0U;
-    tracker->force_reset_flag  = FALSE;
+    tracker->hold_cycle_count     = 0U;
+    tracker->neg_cycle_count      = 0U;
+    tracker->approach_cycle_count = 0U;
+    tracker->total_updates        = 0U;
+    tracker->force_reset_flag     = FALSE;
 }
 
 float Touch_Baseline_Update(Touch_BaselineTracker_t *tracker, float x_est, uint32_t delta_time_ms)
@@ -125,14 +126,31 @@ float Touch_Baseline_Update(Touch_BaselineTracker_t *tracker, float x_est, uint3
      * Zone 2: Finger Approaching Pre-Touch Zone (0.4 * TH <= delta < TH)
      * Hand is slowly approaching the pad (e.g. 5-second slow landing test).
      * Baseline MUST BE FROZEN to prevent slow finger signal from being swallowed into baseline.
+     * Guardrail: If signal stays in Zone 2 for > 8.0s (e.g. water droplet or static step),
+     * auto-timeout and reset baseline to eliminate permanent freeze deadlock.
      * --------------------------------------------------------------------------------------------- */
     if (delta >= tracker->threshold_prepare)
     {
+        tracker->approach_cycle_count++;
+        if (tracker->approach_cycle_count >= TOUCH_APPROACH_TIMEOUT_CYCLES)
+        {
+            /* Environmental step / water droplet stuck in pre-touch zone > 8s: self-heal baseline */
+            tracker->baseline             = x_est;
+            tracker->delta                = 0.0f;
+            tracker->approach_cycle_count = 0U;
+            tracker->force_reset_flag     = TRUE;
+            tracker->active_zone          = TOUCH_ZONE_HOLD_TIMEOUT;
+            return 0.0f;
+        }
+
         tracker->active_zone = TOUCH_ZONE_APPROACH_FREEZE;
         tracker->delta       = delta;
         /* Baseline remains frozen */
         return delta;
     }
+
+    /* Reset approach counter when outside Zone 2 */
+    tracker->approach_cycle_count = 0U;
 
     /* ---------------------------------------------------------------------------------------------
      * Zone 1: Ambient Slow Environmental Drift (-15 LSB <= delta < 0.4 * TH)
@@ -169,10 +187,11 @@ void Touch_Baseline_ForceAlign(Touch_BaselineTracker_t *tracker, float new_basel
         tracker->baseline         = new_baseline;
         tracker->delta            = 0.0f;
         tracker->is_touched       = FALSE;
-        tracker->hold_cycle_count = 0U;
-        tracker->neg_cycle_count  = 0U;
-        tracker->force_reset_flag = TRUE;
-        tracker->active_zone      = TOUCH_ZONE_IDLE_DRIFT;
+        tracker->hold_cycle_count     = 0U;
+        tracker->neg_cycle_count      = 0U;
+        tracker->approach_cycle_count = 0U;
+        tracker->force_reset_flag     = TRUE;
+        tracker->active_zone          = TOUCH_ZONE_IDLE_DRIFT;
     }
 }
 

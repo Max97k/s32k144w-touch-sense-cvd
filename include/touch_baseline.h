@@ -41,10 +41,12 @@ extern "C" {
 /* Timeout and debounce intervals */
 #define TOUCH_NEG_RESET_DURATION_MS     (300U)    /* Fast negative reset debounce time (<= 300 ms) */
 #define TOUCH_HOLD_TIMEOUT_SEC          (15.0f)   /* Maximum continuous touch hold timeout (15.0 sec) */
+#define TOUCH_APPROACH_TIMEOUT_SEC      (8.0f)    /* Max allowed stay in Zone 2 (8.0 sec > 5s slow test) */
 
 /* Debounce cycles derived from interval */
 #define TOUCH_NEG_RESET_CYCLES          (TOUCH_NEG_RESET_DURATION_MS / TOUCH_CYCLE_INTERVAL_MS) /* ~20 cycles */
 #define TOUCH_HOLD_TIMEOUT_CYCLES       ((uint32_t)(TOUCH_HOLD_TIMEOUT_SEC * 1000.0f / (float)TOUCH_CYCLE_INTERVAL_MS)) /* ~1000 cycles */
+#define TOUCH_APPROACH_TIMEOUT_CYCLES   ((uint32_t)(TOUCH_APPROACH_TIMEOUT_SEC * 1000.0f / (float)TOUCH_CYCLE_INTERVAL_MS)) /* ~533 cycles */
 
 /*==================================================================================================
 *                                STRUCTURES AND DATA TYPES
@@ -65,18 +67,19 @@ typedef enum {
  * @brief Baseline Tracker Context Structure
  */
 typedef struct {
-    float                baseline;           /*!< Current tracking baseline estimate (LSB) */
-    float                threshold_touch;    /*!< Touch trigger threshold (LSB) */
-    float                threshold_release;  /*!< Touch release threshold (LSB) */
-    float                threshold_prepare;  /*!< Approach freeze threshold (0.4 * TH) */
-    float                threshold_neg;      /*!< Negative self-healing threshold */
-    float                delta;              /*!< Net signal shift: x_est - baseline (LSB) */
-    boolean              is_touched;         /*!< Filtered hysteresis touch state */
-    Touch_BaselineZone_t active_zone;        /*!< Current operational zone */
-    uint32_t             hold_cycle_count;   /*!< Continuous touch hold cycle counter */
-    uint32_t             neg_cycle_count;    /*!< Negative anomaly persistence cycle counter */
-    uint32_t             total_updates;      /*!< Total updates processed */
-    boolean              force_reset_flag;   /*!< Set TRUE when a timeout or fast reset occurred */
+    float                baseline;              /*!< Current tracking baseline estimate (LSB) */
+    float                threshold_touch;       /*!< Touch trigger threshold (LSB) */
+    float                threshold_release;     /*!< Touch release threshold (LSB) */
+    float                threshold_prepare;     /*!< Approach freeze threshold (0.4 * TH) */
+    float                threshold_neg;         /*!< Negative self-healing threshold */
+    float                delta;                 /*!< Net signal shift: x_est - baseline (LSB) */
+    boolean              is_touched;            /*!< Filtered hysteresis touch state */
+    Touch_BaselineZone_t active_zone;           /*!< Current operational zone */
+    uint32_t             hold_cycle_count;      /*!< Continuous touch hold cycle counter */
+    uint32_t             neg_cycle_count;       /*!< Negative anomaly persistence cycle counter */
+    uint32_t             approach_cycle_count;  /*!< Approach pre-touch stay cycle counter */
+    uint32_t             total_updates;         /*!< Total updates processed */
+    boolean              force_reset_flag;      /*!< Set TRUE when a timeout or fast reset occurred */
 } Touch_BaselineTracker_t;
 
 /*==================================================================================================

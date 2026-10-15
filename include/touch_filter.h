@@ -102,8 +102,9 @@ void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_co
  * @param[in] count Number of burst samples (must be at least 5, typically 9)
  * @param[out] out_z_meas Pointer to output trimmed mean observation
  * @param[out] out_spread Pointer to output noise spread metric
+ * @param[out] out_spike_rejected Pointer to output EFT/ESD spike rejection flag (can be NULL)
  */
-void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread);
+void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread, boolean *out_spike_rejected);
 
 /*!
  * @brief Initialize 1D Adaptive Scalar Kalman Filter

@@ -78,7 +78,7 @@ void Touch_AcquireBurstMFP(int16_t *burst_samples, uint8_t count, uint8_t nop_co
     }
 }
 
-void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread)
+void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *out_z_meas, float *out_spread, boolean *out_spike_rejected)
 {
     if ((burst_samples == NULL_PTR) || (out_z_meas == NULL_PTR) || (out_spread == NULL_PTR))
     {
@@ -89,6 +89,10 @@ void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *
     {
         *out_z_meas = (float)burst_samples[0];
         *out_spread = 0.0f;
+        if (out_spike_rejected != NULL_PTR)
+        {
+            *out_spike_rejected = FALSE;
+        }
         return;
     }
 
@@ -131,6 +135,19 @@ void Touch_AlphaTrimmedMean(const int16_t *burst_samples, uint8_t count, float *
 
     /* 4. High-frequency noise spread metric: 7th item minus 3rd item (0-indexed: [6] - [2]) */
     *out_spread = (float)(sorted[end_idx] - sorted[start_idx]);
+
+    /* 5. Detect EFT / ESD outlier spike rejection (anomaly indicator for diagnostics & M4/M5) */
+    if (out_spike_rejected != NULL_PTR)
+    {
+        if (((sorted[n - 1U] - sorted[end_idx]) > 15) || ((sorted[start_idx] - sorted[0]) > 15))
+        {
+            *out_spike_rejected = TRUE;
+        }
+        else
+        {
+            *out_spike_rejected = FALSE;
+        }
+    }
 }
 
 void Touch_Kalman_Init(Touch_Kalman_t *kf, float initial_val, float q_proc, float r_base, float alpha)

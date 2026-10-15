@@ -7,14 +7,16 @@
 *   Autosar Version      : 4.7.0
 *   SW Version           : 1.0.0
 *
-*   Copyright 2026 Max97k
+*   Copyright (c) 2026, Max97k
 *   All Rights Reserved.
 ==================================================================================================*/
 
 #include "Clock_Ip.h"
+#include "S32K144W_SYSTICK.h"
 #include "touch_cvd.h"
 #include "touch_filter.h"
 #include "touch_baseline.h"
+#include "touch_tinyml.h"
 #include "uart_telemetry.h"
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
@@ -23,9 +25,12 @@ volatile Touch_RawSample_t          g_current_sample;
 volatile Touch_Kalman_t             g_kalman_filter;
 volatile Touch_M2_FilteredSample_t  g_m2_sample;
 volatile Touch_BaselineTracker_t    g_baseline_tracker;
+volatile Touch_TinyMLClassifier_t   g_tinyml_classifier;
 volatile uint16_t                   g_lfsr_state = TOUCH_LFSR_DEFAULT_SEED;
 volatile uint32_t                   g_cycle_counter = 0U;
-volatile boolean                    g_touch_active  = FALSE;
+volatile boolean                    g_baseline_touch = FALSE;
+volatile boolean                    g_tinyml_touch   = FALSE;
+volatile boolean                    g_touch_active   = FALSE;
 
 static void SimpleDelay(uint32_t loops)
 {
@@ -46,7 +51,7 @@ int main(void)
 
     Telemetry_SendString("\r\n=======================================================\r\n");
     Telemetry_SendString("   S32K144W Automotive Touch Sensing CVD Engine\r\n");
-    Telemetry_SendString("   Milestone 1: Bipolar Differential Physical Layer\r\n");
+    Telemetry_SendString("   Milestones 1~4: CVD + Kalman + Baseline + TinyML\r\n");
     Telemetry_SendString("=======================================================\r\n");
 
     /* 3. Initialize Touch GPIO Pins & Status LEDs */
@@ -203,46 +208,76 @@ int main(void)
     Telemetry_SendString("    - Neg Fast Healing TH:   -15.0 LSB (<= 300 ms)\r\n");
     Telemetry_SendString("    - Hold Timeout Limit:    15.0 sec (Forced Baseline Reset)\r\n");
 
-    /* 10. Live Real-Time Continuous Acquisition, Filtering & Baseline Tracking Loop */
-    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & Baseline Tracking Loop (Touch SW7 to test)...\r\n");
+    /* 10. Initialize TinyML Temporal Envelope Classifier Engine (Milestone 4) */
+    Touch_TinyML_Init((Touch_TinyMLClassifier_t *)&g_tinyml_classifier);
+
+    Telemetry_SendString("[*] Milestone 4 TinyML Temporal Envelope Classifier Initialized:\r\n");
+    Telemetry_SendString("    - Temporal Window:       10 cycles (150 ms history)\r\n");
+    Telemetry_SendString("    - Confidence Filter:     3-cycle sliding window hysteresis\r\n");
+    Telemetry_SendString("    - Target Classes:        Bare Finger, Glove/Acrylic, Water Droplet, Edge Hover\r\n");
+    Telemetry_SendString("    - Pass Criteria:         TPR >= 98%, FPR = 0%, Latency <= 60~90 ms\r\n");
+
+    /* 11. Initialize ARM Cortex-M SysTick for Hardware-Locked 15.000 ms Frame Synchronizer */
+    S32_SysTick->CSRr = 0U; /* Disable during config */
+    S32_SysTick->RVR  = 719999U; /* 48 MHz * 0.015 s - 1 = 719999 ticks (15.000 ms) */
+    S32_SysTick->CVR  = 0U; /* Clear current counter */
+    S32_SysTick->CSRr = S32_SysTick_CSR_ENABLE_MASK | S32_SysTick_CSR_CLKSOURCE_MASK; /* Enable, Core clock, No IRQ */
+
+    Telemetry_SendString("[*] SysTick Hardware 15.000 ms Zero-Jitter Frame Synchronizer Activated.\r\n");
+
+    /* 12. Live Real-Time Continuous Acquisition, Filtering, Baseline & TinyML Loop */
+    Telemetry_SendString("\r\n[*] Entering Continuous Touch Sensing & TinyML Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(FALSE, TRUE, FALSE); /* Green LED = Ready */
 
     while (1)
     {
         g_cycle_counter++;
-        SimpleDelay(25000U); /* ~12 ms cycle time */
 
         /* Milestone 2 Step 1: 9x Coprime Multi-Frequency Jittered Burst Acquisition */
         int16_t burst[TOUCH_BURST_SAMPLE_COUNT];
         Touch_AcquireBurstMFP(burst, TOUCH_BURST_SAMPLE_COUNT, g_m1_report.optimal_nop, (uint16_t *)&g_lfsr_state);
 
-        /* Single-ended raw sample for baseline tracking / telemetry */
-        g_current_sample = Touch_AcquireSingleDiffCVD(g_m1_report.optimal_nop);
+        /* Single representative raw sample taken directly from burst midpoint to eliminate redundant ADC read */
+        g_current_sample.sample_A = 0U;
+        g_current_sample.sample_B = 0U;
+        g_current_sample.delta_D  = burst[4];
 
-        /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean & Noise Spread Metric */
+        /* Milestone 2 Step 2: Non-linear Alpha-Trimmed Mean & Noise Spread Metric with Outlier Spike Detection */
         float z_meas = 0.0f;
         float spread = 0.0f;
-        Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread);
+        boolean spike_rejected = FALSE;
+        Touch_AlphaTrimmedMean(burst, TOUCH_BURST_SAMPLE_COUNT, &z_meas, &spread, &spike_rejected);
 
         /* Milestone 2 Step 3: 1D Adaptive Scalar Kalman Filter Update */
         float x_est = Touch_Kalman_Update((Touch_Kalman_t *)&g_kalman_filter, z_meas, spread);
 
         /* Store diagnostics */
-        g_m2_sample.raw_diff    = burst[4];
-        g_m2_sample.z_meas      = z_meas;
-        g_m2_sample.x_est       = x_est;
-        g_m2_sample.spread      = spread;
-        g_m2_sample.kalman_gain = g_kalman_filter.k_gain;
+        g_m2_sample.raw_diff       = burst[4];
+        g_m2_sample.z_meas         = z_meas;
+        g_m2_sample.x_est          = x_est;
+        g_m2_sample.spread         = spread;
+        g_m2_sample.kalman_gain    = g_kalman_filter.k_gain;
+        g_m2_sample.spike_rejected = spike_rejected;
 
         /* Milestone 3: 4-Zone Asymmetric Dynamic Baseline Tracking */
         float dynamic_delta = Touch_Baseline_Update((Touch_BaselineTracker_t *)&g_baseline_tracker, x_est, 15U);
-        g_touch_active = Touch_Baseline_IsTouched((Touch_BaselineTracker_t *)&g_baseline_tracker);
+        g_baseline_touch = Touch_Baseline_IsTouched((Touch_BaselineTracker_t *)&g_baseline_tracker);
+
+        /* Milestone 4: TinyML Temporal Envelope Classifier Engine */
+        Touch_ClassificationClass_t detected_class = Touch_TinyML_Update((Touch_TinyMLClassifier_t *)&g_tinyml_classifier, dynamic_delta, spread);
+        g_tinyml_touch = Touch_TinyML_IsValidTouch((const Touch_TinyMLClassifier_t *)&g_tinyml_classifier);
+
+        /* Multi-dimensional Touch Decision Fusion:
+         * Valid touch requires TinyML envelope confirmation (bare finger or glove)
+         * AND sufficient dynamic signal above minimum glove detection threshold (35 LSB).
+         * Rejects water droplets (low SNR/atypical envelope) and edge hovers (too transient). */
+        g_touch_active = (g_tinyml_touch && (dynamic_delta >= TOUCH_MIN_GLOVE_DELTA_LSB));
 
         int16_t net_shift_raw = g_current_sample.delta_D - g_m1_report.baseline_delta;
 
         if (g_touch_active)
         {
-            /* Active Touch: Blue LED ON, Green LED OFF */
+            /* Active Verified Touch: Blue LED ON, Green LED OFF */
             Touch_SetStatusLeds(FALSE, FALSE, TRUE);
 
             if (dynamic_delta >= (float)M1_TOUCH_DELTA_MIN_LSB)
@@ -253,49 +288,58 @@ int main(void)
         }
         else
         {
-            /* Released / Idle / Approaching: Green LED ON, Blue LED OFF */
+            /* Released / Idle / Approaching / Water Rejected: Green LED ON, Blue LED OFF */
             Touch_SetStatusLeds(FALSE, TRUE, FALSE);
         }
 
-        /* Periodic telemetry output every 10 cycles (~150 ms) */
+        /* Periodic telemetry output interleaved every 10 cycles (~150 ms)
+         * Transmissions are phased to keep frame duration < 5.6 ms, preventing loop stretching */
         if ((g_cycle_counter % 10U) == 0U)
         {
-            /* Backward compatible M1 line for existing loggers */
-            Telemetry_SendString("LIVE,A:");
-            Telemetry_SendUInt(g_current_sample.sample_A);
-            Telemetry_SendString(",B:");
-            Telemetry_SendUInt(g_current_sample.sample_B);
-            Telemetry_SendString(",Delta:");
-            Telemetry_SendInt(g_current_sample.delta_D);
-            Telemetry_SendString(",NetShift:");
-            Telemetry_SendInt(net_shift_raw);
-            Telemetry_SendString(g_touch_active ? " [TOUCHED]\r\n" : " [IDLE]\r\n");
+            uint8_t phase = (uint8_t)((g_cycle_counter / 10U) % 3U);
+            if (phase == 0U)
+            {
+                /* Stream 1: Live Raw Telemetry */
+                Telemetry_SendString("LIVE,Delta:");
+                Telemetry_SendInt(g_current_sample.delta_D);
+                Telemetry_SendString(",NetShift:");
+                Telemetry_SendInt(net_shift_raw);
+                Telemetry_SendString(",DynDelta:");
+                Telemetry_SendFloat(dynamic_delta, 1U);
+                Telemetry_SendString(g_touch_active ? " [TOUCHED]\r\n" : " [IDLE]\r\n");
+            }
+            else if (phase == 1U)
+            {
+                /* Stream 2: Milestone 2 & 3 Filter & Baseline Status */
+                Telemetry_SendString("M23,Xest:");
+                Telemetry_SendFloat(x_est, 1U);
+                Telemetry_SendString(",Base:");
+                Telemetry_SendFloat(g_baseline_tracker.baseline, 1U);
+                Telemetry_SendString(",Spr:");
+                Telemetry_SendFloat(spread, 1U);
+                Telemetry_SendString(",Zone:");
+                Telemetry_SendUInt((uint32_t)g_baseline_tracker.active_zone);
+                Telemetry_SendString(g_baseline_touch ? ",B_Touch:1\r\n" : ",B_Touch:0\r\n");
+            }
+            else
+            {
+                /* Stream 3: Milestone 4 TinyML Envelope & Classification Diagnostics */
+                Telemetry_SendString("M4,Class:");
+                Telemetry_SendUInt((uint32_t)detected_class);
+                Telemetry_SendString(",Conf:");
+                Telemetry_SendFloat(g_tinyml_classifier.confidence, 2U);
+                Telemetry_SendString(",Slope:");
+                Telemetry_SendFloat(g_tinyml_classifier.features.attack_slope, 1U);
+                Telemetry_SendString(",Var:");
+                Telemetry_SendFloat(g_tinyml_classifier.features.plateau_variance, 1U);
+                Telemetry_SendString(g_tinyml_touch ? " [VERIFIED]\r\n" : " [REJECT]\r\n");
+            }
+        }
 
-            /* Milestone 2 Extended Filtered Telemetry Stream */
-            Telemetry_SendString("M2,Zmeas:");
-            Telemetry_SendFloat(z_meas, 1U);
-            Telemetry_SendString(",Xest:");
-            Telemetry_SendFloat(x_est, 2U);
-            Telemetry_SendString(",Spread:");
-            Telemetry_SendFloat(spread, 1U);
-            Telemetry_SendString(",K:");
-            Telemetry_SendFloat(g_kalman_filter.k_gain, 3U);
-            Telemetry_SendString(",Delta:");
-            Telemetry_SendFloat(dynamic_delta, 2U);
-            Telemetry_SendString("\r\n");
-
-            /* Milestone 3 Asymmetric Baseline Telemetry Stream */
-            Telemetry_SendString("M3,Base:");
-            Telemetry_SendFloat(g_baseline_tracker.baseline, 2U);
-            Telemetry_SendString(",Delta:");
-            Telemetry_SendFloat(dynamic_delta, 2U);
-            Telemetry_SendString(",Zone:");
-            Telemetry_SendUInt((uint32_t)g_baseline_tracker.active_zone);
-            Telemetry_SendString(",HoldCnt:");
-            Telemetry_SendUInt(g_baseline_tracker.hold_cycle_count);
-            Telemetry_SendString(",NegCnt:");
-            Telemetry_SendUInt(g_baseline_tracker.neg_cycle_count);
-            Telemetry_SendString(g_touch_active ? ",Touch:1\r\n" : ",Touch:0\r\n");
+        /* Hardware-Locked Exact 15.000 ms Frame Synchronization via SysTick COUNTFLAG */
+        while ((S32_SysTick->CSRr & S32_SysTick_CSR_COUNTFLAG_MASK) == 0U)
+        {
+            /* Precise hardware synchronization eliminates software delay drift */
         }
     }
 

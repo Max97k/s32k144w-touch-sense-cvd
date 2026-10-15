@@ -7,7 +7,7 @@
 *   Autosar Version      : 4.7.0
 *   SW Version           : 1.0.0
 *
-*   Copyright 2026 Max97k
+*   Copyright (c) 2026, Max97k
 *   All Rights Reserved.
 ==================================================================================================*/
 
@@ -139,6 +139,14 @@ void Telemetry_SendFloat(float value, uint8_t decimals)
         value = -value;
     }
 
+    /* Half-LSB rounding compensation to avoid truncation artifacts (e.g. -333.999f -> -334.00) */
+    float round_offset = 0.5f;
+    for (uint8_t i = 0U; i < decimals; i++)
+    {
+        round_offset *= 0.1f;
+    }
+    value += round_offset;
+
     uint32_t int_part = (uint32_t)value;
     Telemetry_SendUInt(int_part);
 
@@ -150,6 +158,10 @@ void Telemetry_SendFloat(float value, uint8_t decimals)
         {
             frac *= 10.0f;
             uint32_t digit = (uint32_t)frac;
+            if (digit > 9U)
+            {
+                digit = 9U;
+            }
             Telemetry_SendChar((char)('0' + digit));
             frac -= (float)digit;
         }
