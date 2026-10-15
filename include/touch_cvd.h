@@ -7,7 +7,7 @@
 *   Autosar Version      : 4.7.0
 *   SW Version           : 1.0.0
 *
-*   Copyright 2026 NXP / Max97k
+*   Copyright 2026 Max97k
 *   All Rights Reserved.
 ==================================================================================================*/
 

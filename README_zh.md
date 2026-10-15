@@ -250,6 +250,8 @@ python tools/capture_telemetry.py COM5
 
 ## 10. 商標與版權宣告
 
+* 本專案所有演算法與軟體原始碼版權均歸 **Max97k** 所有（基於 BSD-3-Clause 授權）。
 * NXP, the NXP logo, and S32K are trademarks of NXP B.V.
 * Arm, Cortex are registered trademarks of Arm Limited.
 * AUTOSAR is a registered trademark of the AUTOSAR Development Partnership.
+

@@ -78,4 +78,4 @@ python ../tools/capture_telemetry.py COM5
 
 ## License
 
-BSD-3-Clause License. Copyright 2026 NXP Semiconductors / Max97k.
+BSD-3-Clause License. Copyright (c) 2026, Max97k.
