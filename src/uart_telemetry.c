@@ -24,13 +24,12 @@ void Telemetry_Init(uint32_t baudrate)
     IP_PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
 
     /* Configure OpenSDA Virtual COM on XS32K14WEVB-Q064:
-     * PTC8 = ALT2 (LPUART1_RX), PTC9 = ALT2 (LPUART1_TX) */
+     * PTC8 = ALT2 (LPUART1_RX, Pin 36)
+     * PTC9 = ALT2 (LPUART1_TX, Pin 35)
+     * Note: PTC6 / PTC7 are routed to J5 header expansion; keep un-muxed to prevent
+     * internal input contention on LPUART1_RX. */
     IP_PORTC->PCR[TELEMETRY_UART_TX_PIN] = PORT_PCR_MUX(2U);
     IP_PORTC->PCR[TELEMETRY_UART_RX_PIN] = PORT_PCR_MUX(2U);
-
-    /* Also configure PTC6 (RX) / PTC7 (TX) for J5 header expansion */
-    IP_PORTC->PCR[TELEMETRY_UART_EXP_TX] = PORT_PCR_MUX(2U);
-    IP_PORTC->PCR[TELEMETRY_UART_EXP_RX] = PORT_PCR_MUX(2U);
 
     /* Clock source selection: PCS=3 -> FIRCDIV2 (48.0 MHz) */
     IP_PCC->PCCn[PCC_LPUART1_INDEX] &= ~PCC_PCCn_CGC_MASK;

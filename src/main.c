@@ -21,9 +21,9 @@
 #include "touch_sense.h"
 #include "uart_telemetry.h"
 
-/* Define CUE_TEST_MODE to enable the cue-LED schedule used for hardware recording sessions
- * (Green=idle, Blue=press, Red=done). */
-#define CUE_TEST_MODE
+/* Uncomment CUE_TEST_MODE to enable the cue-LED schedule used for hardware recording sessions
+ * (Green=idle, Blue=press, Red=done). Off by default so LEDs show real-time touch state and heartbeat. */
+/* #define CUE_TEST_MODE */
 
 /* Volatile symbols for GDB / FreeMASTER live debugging */
 volatile Touch_M1_Report_t          g_m1_report;
@@ -59,8 +59,8 @@ int main(void)
     SimpleDelay(100000U);
 
     Telemetry_SendString("\r\n=======================================================\r\n");
-    Telemetry_SendString("   S32K144W Automotive Touch Sensing CVD Engine\r\n");
-    Telemetry_SendString("   Milestones 1~5: CVD + Kalman + Baseline + TinyML + Safety\r\n");
+    Telemetry_SendString("   S32K144W Capacitive Touch Sensing CVD Reference Engine\r\n");
+    Telemetry_SendString("   Milestones 1~5: CVD + Kalman + Baseline + Classifier + Diagnostics\r\n");
     Telemetry_SendString("=======================================================\r\n");
 
     /* 3. Initialize Touch GPIO Pins & Status LEDs */
@@ -251,7 +251,7 @@ int main(void)
 
     /* 14. Live Real-Time Continuous Acquisition, Filtering, Baseline, TinyML & Diag Loop */
     Telemetry_SendString("\r\n[*] Telemetry CSV Format: D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<ExecUs>,<Heartbeat>,<Status>\r\n");
-    Telemetry_SendString("[*] Entering Continuous Touch Sensing & ASIL-B Safety Diag Loop (Touch SW7 to test)...\r\n");
+    Telemetry_SendString("[*] Entering Continuous Touch Sensing & Diagnostics Loop (Touch SW7 to test)...\r\n");
     Touch_SetStatusLeds(TRUE, FALSE, FALSE); /* Red LED = Untouched / Idle */
 
     while (1)
@@ -314,7 +314,7 @@ int main(void)
         /* Normal Touch Candidate: TinyML confirmation AND sufficient dynamic signal */
         boolean touch_candidate = g_tinyml_touch;
 
-        /* Milestone 5: ISO 26262 ASIL-B Safety Interlock & Fail-Safe Clamp */
+        /* Milestone 5: Hardware Plausibility Diagnostics Fail-Safe Interlock Clamp */
         if (active_faults != TOUCH_FAULT_NONE)
         {
             /* Hard Safety Interlock: When any hardware defect/short is active,
@@ -338,6 +338,21 @@ int main(void)
         /* Heartbeat Pulse: 0.1s ON, 0.9s OFF (Period = 1.0 s = 67 frames @ 15.0 ms: 7 frames ON, 60 frames OFF) */
         g_heartbeat_state = ((g_cycle_counter % 67U) < 7U) ? 1U : 0U;
 
+#if defined(CUE_TEST_MODE)
+        /* Cue schedule for recording sessions (66.7 Hz): Green=idle/release, Blue=press and hold (4 s) x3, Red=done */
+        if ((g_cycle_counter >= 667U) && (g_cycle_counter < 2267U))
+        {
+            Touch_SetStatusLeds(FALSE, (((g_cycle_counter - 667U) % 533U) >= 267U), (((g_cycle_counter - 667U) % 533U) < 267U));
+        }
+        else if ((g_cycle_counter >= 2267U) && (g_cycle_counter < 2400U))
+        {
+            Touch_SetStatusLeds(TRUE, FALSE, FALSE);
+        }
+        else
+        {
+            Touch_SetStatusLeds(FALSE, TRUE, FALSE);
+        }
+#else
         /* Hardware Status LEDs:
          * - Idle (not pressed): Red LED ON, Green LED OFF
          * - Pressed: Red LED OFF, Green LED ON
@@ -348,6 +363,7 @@ int main(void)
         boolean led_blue  = (g_heartbeat_state != 0U);
 
         Touch_SetStatusLeds(led_red, led_green, led_blue);
+#endif
 
         /* Compute execution time in microseconds using 48 MHz SysTick CVR */
         uint32_t end_cvr = S32_SysTick->CVR;

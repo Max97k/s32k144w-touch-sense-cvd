@@ -21,12 +21,14 @@ extern "C" {
 #include "StandardTypes.h"
 #include <stdint.h>
 
-/* OpenSDA Virtual COM Port LPUART1 Pins on XS32K14WEVB-Q064 */
+/* OpenSDA Virtual COM Port LPUART1 Pins on XS32K14WEVB-Q064:
+ * OpenSDA CP2102 / K20 connects to PTC8 (RX, Pin 36) and PTC9 (TX, Pin 35).
+ * PTC6 (Pin 52) and PTC7 (Pin 51) are routed to J5 header expansion. */
 #define TELEMETRY_UART_PORT      IP_PORTC
-#define TELEMETRY_UART_TX_PIN    (9U)   /* PTC9 -> OpenSDA LPUART1_TX (ALT2) */
-#define TELEMETRY_UART_RX_PIN    (8U)   /* PTC8 -> OpenSDA LPUART1_RX (ALT2) */
-#define TELEMETRY_UART_EXP_TX    (7U)   /* PTC7 -> J5 Header LPUART1_TX (ALT2) */
-#define TELEMETRY_UART_EXP_RX    (6U)   /* PTC6 -> J5 Header LPUART1_RX (ALT2) */
+#define TELEMETRY_UART_TX_PIN    (9U)   /* PTC9 -> OpenSDA LPUART1_TX (ALT2, Pin 35) */
+#define TELEMETRY_UART_RX_PIN    (8U)   /* PTC8 -> OpenSDA LPUART1_RX (ALT2, Pin 36) */
+#define TELEMETRY_UART_EXP_TX    (7U)   /* PTC7 -> J5 Header LPUART1_TX (ALT2, Pin 51) */
+#define TELEMETRY_UART_EXP_RX    (6U)   /* PTC6 -> J5 Header LPUART1_RX (ALT2, Pin 52) */
 
 /*!
  * @brief Initialize LPUART1 for OpenSDA ASCII telemetry.

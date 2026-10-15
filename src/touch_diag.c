@@ -1,7 +1,7 @@
 /*==================================================================================================
 *   Project              : S32K144W Touch Sensing CVD Algorithm
 *   Platform             : CORTEXM
-*   Peripheral           : On-line Hardware Defect Diagnostics & ISO 26262 ASIL-B Safety Engine
+*   Peripheral           : Hardware Plausibility Diagnostics & Defensive Safety Engine
 *   Dependencies         : touch_diag.h
 *
 *   Autosar Version      : 4.7.0
@@ -134,7 +134,7 @@ uint32_t Touch_Diag_RunCycle(Touch_Diagnostics_t *diag,
     }
 
     /* ---------------------------------------------------------------------------------------------
-     * Diagnostic 3: Bridging Resistor R525 (10k) Degradation / Open Circuit (|diff| > 80 LSB)
+     * Diagnostic 3: Bridging Resistor R525 (10k) Degradation / Open Circuit (|diff| > 250 LSB)
      * --------------------------------------------------------------------------------------------- */
     int16_t abs_bal_diff = (balance_diff < 0) ? (int16_t)(-balance_diff) : balance_diff;
     if (abs_bal_diff > (int16_t)TOUCH_DIAG_BALANCE_DIFF_MAX_LSB)

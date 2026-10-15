@@ -336,7 +336,7 @@ def main():
     # ----------------------------------------------------------------------------------
     # Test 5: Fault Injection Test C - Bridging Resistor R525 Open-Circuit / Degradation
     # ----------------------------------------------------------------------------------
-    # Balance diff spikes to +350 LSB (> 80 LSB)
+    # Balance diff spikes to +350 LSB (> 250 LSB)
     r525_reaction_cycles = None
     for c in range(72, 80):
         f = diag.run_cycle(2079, 1745, 350, 5000)

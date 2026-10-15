@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
 	<name>s32k144w-touch-sense-cvd</name>
-	<comment>Automotive Capacitive Touch Sensing Algorithm Engine for NXP S32K144W</comment>
+	<comment>Capacitive Touch Sensing Reference Implementation for NXP S32K144W</comment>
 	<projects>
 	</projects>
 	<buildSpec>

@@ -504,12 +504,12 @@
 
         <div class="stat-row">
           <span class="stat-label" id="lblExec" data-glossary="exec">MCU Execution Time:</span>
-          <span class="stat-value" id="valExec" style="color: var(--nxp-green);">32 &mu;s</span>
+          <span class="stat-value" id="valExec" style="color: var(--nxp-green);">210 &mu;s</span>
         </div>
 
         <div class="stat-row">
-          <span class="stat-label" id="lblSafety" data-glossary="safety">ASIL-B Safety Budget:</span>
-          <span class="stat-value" id="valSafety" style="color: var(--text-muted);">&lt; 15,000 &mu;s (99.8% Headroom)</span>
+          <span class="stat-label" id="lblSafety" data-glossary="safety">Real-Time Safety Headroom:</span>
+          <span class="stat-value" id="valSafety" style="color: var(--text-muted);">&lt; 15,000 &mu;s (98.6% Headroom)</span>
         </div>
 
         <div class="stat-row">
@@ -575,8 +575,8 @@
         lblDta: "DTA Threshold:",
         lblConf: "TinyML Confidence:",
         lblExec: "MCU Execution Time:",
-        lblSafety: "ASIL-B Safety Budget:",
-        valSafety: "< 15,000 μs (99.8% Headroom)",
+        lblSafety: "Real-Time Safety Headroom:",
+        valSafety: "< 15,000 μs (98.6% Headroom)",
         lblHeartbeat: "MCU Heartbeat (0.1s/0.9s):",
         hbActiveText: "● PULSE ON (0.1s)",
         hbIdleText: "○ IDLE OFF (0.9s)",
@@ -654,11 +654,11 @@
             effect: "Consumes merely 1.4% of the 15.0 ms frame budget, reserving 98.6% of MCU power for automotive CAN communication, motor control, or VLPS ultra-low-power sleep (60 µA)."
           },
           safety: {
-            title: "ASIL-B Safety Budget",
-            category: "ISO 26262 Automotive Safety",
+            title: "Real-Time Safety Headroom",
+            category: "Embedded System Timing",
             badgeColor: "var(--nxp-red)",
-            plain: "ISO 26262 ASIL-B real-time headroom within the 15 ms frame deadline. The codebase strictly adheres to MISRA C with zero dynamic heap allocation (0B Heap) and timeout guards on all loops.",
-            effect: "Continuous online diagnostics: short-to-GND, short-to-VDD, and resistor open-circuit faults are latched within 30 ms to safely disarm the touch output."
+            plain: "Real-time headroom within the 15 ms frame deadline. The codebase employs defensive embedded C practices with zero dynamic heap allocation (0B Heap) and timeout guards on all loops.",
+            effect: "Continuous online diagnostics: short-to-GND, short-to-VDD, and resistor degradation faults are latched within 30 ms to safely disarm the touch output."
           },
           heartbeat: {
             title: "MCU Synchronized Heartbeat",
@@ -740,8 +740,8 @@
         lblDta: "動態調整門檻 DTA:",
         lblConf: "TinyML 置信度:",
         lblExec: "MCU 運算耗時:",
-        lblSafety: "ASIL-B 安全預算:",
-        valSafety: "< 15,000 μs (99.8% 裕度)",
+        lblSafety: "即時安全裕度:",
+        valSafety: "< 15,000 μs (98.6% 裕度)",
         lblHeartbeat: "MCU 心跳 (亮0.1s 暗0.9s):",
         hbActiveText: "● 脈衝亮 (0.1秒)",
         hbIdleText: "○ 待機滅 (0.9秒)",
@@ -819,11 +819,11 @@
             effect: "在 15.0 ms 的系統訊框中，CPU 負載佔空比僅 1.4%，留下 98.6% 的強大運算餘裕可執行車身 CAN 通訊、控制演算法，或直接進入 VLPS 極低功耗待機（60 µA）。"
           },
           safety: {
-            title: "ASIL-B Safety Budget (車規功能安全預算)",
-            category: "ISO 26262 汽車安全",
+            title: "Real-Time Safety Headroom (即時安全裕度)",
+            category: "嵌入式系統時序",
             badgeColor: "var(--nxp-red)",
-            plain: "ISO 26262 ASIL-B 功能安全規範所定義的即時安全裕度（以 15 ms 訊框為基準）。全系統代碼符合 MISRA C 規範，保證 0 動態記憶體分配（0B Heap）且所有硬體迴圈皆有逾時保護。",
-            effect: "整合線上缺陷診斷：電極對地短路、對電源短路、電阻斷路均在 30 ms 內切斷輸出並發出告警，完全杜絕汽車人機介面失控風險。"
+            plain: "在 15.0 ms 系統訊框截止時間內的即時運算安全裕度。全系統代碼遵循防禦性 C 實踐，保證 0 動態記憶體分配（0B Heap）且所有硬體迴圈皆有逾時保護。",
+            effect: "整合線上缺陷診斷：電極對地短路、對電源短路、電阻斷路均在 30 ms 內切斷輸出並發出告警，完全杜絕觸控誤觸發風險。"
           },
           heartbeat: {
             title: "MCU Heartbeat (0.1s 亮 / 0.9s 暗 硬體心跳)",

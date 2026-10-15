@@ -1,7 +1,7 @@
 /*==================================================================================================
 *   Project              : S32K144W Touch Sensing CVD Algorithm
 *   Platform             : CORTEXM
-*   Peripheral           : On-line Hardware Defect Diagnostics & ISO 26262 ASIL-B Safety Engine
+*   Peripheral           : Hardware Plausibility Diagnostics & Defensive Safety Engine
 *   Dependencies         : StandardTypes.h
 *
 *   Autosar Version      : 4.7.0

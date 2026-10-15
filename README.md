@@ -1,10 +1,11 @@
-# S32K144W Automotive Capacitive Touch Sensing Algorithm Engine (CVD & TinyML)
+# S32K144W Capacitive Touch Sensing Reference Implementation (CVD & Rule-Based Classifier)
 
 [![Target: NXP S32K144W](https://img.shields.io/badge/Target-NXP%20S32K144W-005a9c.svg)](https://www.nxp.com/products/processors-and-microcontrollers/arm-microcontrollers/s32k-automotive-mcus/s32k1-microcontrollers-for-general-purpose:S32K1)
 [![Core: Arm Cortex-M4F](https://img.shields.io/badge/Core-Arm%C2%AE%20Cortex%C2%AE--M4F%20%40%2048MHz-blue.svg)](https://www.arm.com/products/silicon-ip-cpu/cortex-m/cortex-m4)
 [![RTD: 3.0.0 (AUTOSAR 4.7)](https://img.shields.io/badge/RTD-3.0.0%20(AUTOSAR%C2%AE%204.7)-orange.svg)](https://www.nxp.com)
 [![Toolchain: GCC 10.2](https://img.shields.io/badge/Toolchain-GCC%2010.2%20(0%20errors%20%7C%200%20warns)-brightgreen.svg)](https://gcc.gnu.org)
-[![Functional Safety: ISO 26262 / ASIL-B Ready](https://img.shields.io/badge/Safety-ISO%2026262%20%2F%20ASIL--B%20Ready-success.svg)](https://www.iso.org/standard/68383.html)
+[![Design Style: Defensive C / Zero-Heap](https://img.shields.io/badge/Design-Defensive%20C%20%2F%20Zero--Heap-blue.svg)](include/touch_diag.h)
+[![Diagnostics: Plausibility & Fault Checks](https://img.shields.io/badge/Diagnostics-Plausibility%20%26%20Fault%20Checks-brightgreen.svg)](include/touch_diag.h)
 [![EMC: IEC 61000-4-6 / CISPR 25](https://img.shields.io/badge/EMC-Spread--Spectrum%20MFP-purple.svg)](https://www.iec.ch)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
 
@@ -12,22 +13,22 @@ English | [繁體中文](README_zh.md)
 
 ---
 
-Production-grade automotive capacitive touch sensing firmware engine designed for the **NXP Semiconductors® S32K144W evaluation board (`XS32K14WEVB-Q064`)**.
+Experimental capacitive touch sensing firmware reference implementation for the **NXP Semiconductors® S32K144W evaluation board (`XS32K14WEVB-Q064`)**.
 
-Implemented in strict adherence to **NXP Real Time Drivers (RTD 3.0.0)**, **S32 Configuration Tools (MEX)**, and **ISO 26262 / MISRA C** functional safety guidelines. Structured into **6 Progressive Engineering Milestones (M1 to M6)** on a dual-pin charge transfer CVD topology (`PTC17` driving, `R525` $10\text{ k}\Omega$ / $4.7\text{ k}\Omega$, `PTC16/ADC0_SE14` sensing, `C533` $10\text{ pF}$, and $15\text{ mm} \times 15\text{ mm}$ copper electrode `SW7`).
+Built alongside **NXP Real Time Drivers (RTD 3.0.0)** and defensive embedded C coding practices (static memory allocation, bounded polling loops, and basic hardware plausibility checks). Structured into **6 Progressive Engineering Milestones (M1 to M6)** on a dual-pin charge transfer CVD topology (`PTC17` driving, `R525` $10\text{ k}\Omega$ / $4.7\text{ k}\Omega$, `PTC16/ADC0_SE14` sensing, `C533` $10\text{ pF}$, and $15\text{ mm} \times 15\text{ mm}$ copper electrode `SW7`).
 
 ---
 
 ## Key Features
 
-* **Bipolar Four-Phase Fully Differential CVD**: Alternate positive and negative precharge & charge-sharing yielding $2\times$ differential physical signal gain ($\Delta D = V_B - V_A = 80 \sim 200\text{ LSB}$).
+* **Bipolar Four-Phase Fully Differential CVD**: Alternate positive and negative precharge & charge-sharing yielding $\sim 2\times$ differential physical signal gain over single-ended sensing.
 * **Multi-Frequency Spread-Spectrum Burst Acquisition (MFP)**: 16-bit Galois LFSR (`0xB400`) with coprime delays $\{15, 23, 31\}$ cycles to break EMI harmonic lock.
-* **Cascaded Non-Linear Filtering Engine**: Alpha-trimmed mean ($N=9$, discarding top/bottom 2 extreme outlier spikes) cascaded with 1D Adaptive Scalar Kalman Filter ($Q=0.35, R=1.0, \alpha=0.75$), achieving $\text{SNR} = 65.57\text{ dB}$ and residual noise $\sigma = 0.103\text{ LSB}$.
+* **Cascaded Non-Linear Filtering Engine**: Alpha-trimmed mean ($N=9$, discarding top/bottom 2 extreme outlier spikes) cascaded with 1D Adaptive Scalar Kalman Filter ($Q=0.35, R=1.0, \alpha=0.75$), achieving effective transient spike rejection and low quiescent noise on hardware.
 * **4-Zone Asymmetric Dynamic Baseline Tracker**: Slew-rate bounded ambient tracking ($+1.5\text{ LSB/s}$ / $-2.0\text{ LSB/s}$), approach freeze at $0.4\times\text{TH}$, 15-second foreign object hold timeout, and touch-on-boot negative self-healing in $\le 285\text{ ms}$.
-* **TinyML Temporal Envelope Feature Classification**: 4 physical feature extractors (attack slope, dynamic SNR, plateau variance, energy) with 3-step confidence sliding window hysteresis ($100\%$ bare/glove detection, $0\%$ water/hover false triggers, $45\text{ ms}$ latency).
+* **Rule-Based Temporal Envelope Feature Classification (with Soft-Margin Scoring)**: Lightweight heuristic rule tree evaluating 4 envelope features (attack slope, dynamic SNR, plateau variance, sustain ratio) with 3-step confidence sliding window hysteresis for discriminating finger contacts from environmental disturbances.
 * **ARM Cortex-M SysTick Zero-Jitter Synchronizer**: Exact $15.000\text{ ms}$ hardware-locked frame period eliminating software loop stretching.
-* **On-line Hardware Defect Diagnostics (ASIL-B Ready)**: Real-time monitoring of Short-to-GND ($< 300\text{ LSB}$), Short-to-VDD ($> 3800\text{ LSB}$), $R_{525}$ open circuit, and Bandgap $V_{\text{REFH}}$ drift ($\pm 5\%$) with $30\text{ ms}$ qualification and $120\text{ ms}$ self-healing auto-recovery.
-* **Deterministic MISRA C Architecture**: Zero dynamic memory allocation (0 Bytes heap), bounded loops via timeout guards, static stack consumption $< 250\text{ Bytes}$.
+* **Hardware Plausibility Diagnostics & Fail-Safe Clamping (Inspired by Automotive Concepts)**: Real-time monitoring of Short-to-GND ($< 300\text{ LSB}$), Short-to-VDD ($> 3800\text{ LSB}$), $R_{525}$ bridging integrity ($< 250\text{ LSB}$ balance delta), and Bandgap $V_{\text{REFH}}$ drift ($\pm 5\%$) with $30\text{ ms}$ qualification and $120\text{ ms}$ self-healing auto-recovery.
+* **MISRA-Inspired Defensive C Practices**: Zero dynamic memory allocation (0 Bytes heap), bounded hardware wait loops via timeout guards, and deterministic static stack consumption ($< 250\text{ Bytes}$).
 
 ---
 
@@ -38,8 +39,8 @@ Implemented in strict adherence to **NXP Real Time Drivers (RTD 3.0.0)**, **S32 
 | **TOUCH_A (Drive)** | `PTC17` | Pin 27 | $R_{525}$ ($10\text{ k}\Omega$/$4.7\text{ k}\Omega$), $R_{172}$ ($0\Omega$), `SW7` | Charge transfer drive / `ADC0_SE15` |
 | **TOUCH_B (Sense)** | `PTC16` | Pin 28 | $C_{533}$ ($10\text{ pF}$ to GND), $R_{525}$ | Charge transfer sense / `ADC0_SE14` |
 | **Touch Pad** | `SW7` | Onboard PCB | $15\text{ mm} \times 15\text{ mm}$ Copper electrode | Sensing capacitance $C_x$ |
-| **UART_TX** | `PTC7` | Pin 51 | OpenSDA Virtual COM TX (ALT2) | 115200 bps 8N1 Telemetry |
-| **UART_RX** | `PTC6` | Pin 52 | OpenSDA Virtual COM RX (ALT2) | Serial receive channel |
+| **UART_TX** | `PTC9` | Pin 35 | OpenSDA Virtual COM TX (ALT2) | 115200 bps 8N1 Telemetry |
+| **UART_RX** | `PTC8` | Pin 36 | OpenSDA Virtual COM RX (ALT2) | Serial receive channel |
 | **RED LED** | `PTE7` | Pin 39 | GPIO Output | Standby indicator (Lit when released, turns off when touched; fault alarm) |
 | **GREEN LED** | `PTE0` | Pin 60 | GPIO Output | Touch confirmed indicator (Lit when pressed) |
 | **BLUE LED** | `PTE3` | Pin 13 | GPIO Output | Hardware 1.0s Heartbeat (0.1s ON / 0.9s OFF, synchronized with web dashboard) |
@@ -76,14 +77,14 @@ Every claim below is tagged with how it was verified:
 - [~] **M3: Asymmetric Baseline Tracker** (`v1.0.3-m3`) - **[SIM] + [HW] baseline stable** — [[5]](#references--technical-specifications), [[9]](#references--technical-specifications)
   - [x] 4-zone state machine, slew +1.5/-2.0 LSB/s. Baseline stayed at about -338..-340 across all hardware recordings. [HW]
   - [ ] Touch-on-boot 285 ms, 5 s slow approach, hair-dryer drift, 15 s coin timeout: **[SIM] only**.
-- [x] **M4: Temporal Envelope Classification (TinyML) & Water Rejection** (`v1.0.4-m4-rev2`) - **[SIM] 100% Pass + [HW] Integrated** — [[6]](#references--technical-specifications), [[7]](#references--technical-specifications), [[12]](#references--technical-specifications)
+- [x] **M4: Rule-Based Temporal Envelope Classification & Water Rejection** (`v1.0.4-m4-rev2`) - **[SIM] 100% Pass + [HW] Integrated** — [[6]](#references--technical-specifications), [[7]](#references--technical-specifications), [[12]](#references--technical-specifications)
   - [x] 4 time-domain envelope features: 2-cycle attack slope, linear dynamic SNR, normalized curvature variance, sustain ratio. [HW & SIM]
   - [x] Dynamic Threshold Adjustment (DTA: 34.0 ~ 58.0 LSB) accommodates 2mm acrylic / glove while rejecting water mist. [HW & SIM]
   - [x] 3-step confidence sliding window hysteresis (0.64 trigger / 0.38 release) with soft-margin scoring. [HW & SIM]
   - [x] Zone 2 8-second approach timeout anti-lockup implemented in `touch_baseline.c`. [HW & SIM]
   - [x] `tests/test_m4_contract.py`: 140-trial validation passes 100% (Bare Finger TPR 100%, Glove/Acrylic TPR 100%, Water FPR 0%, Swipe FPR 0%, Reaction Latency 39.9 ms). [SIM]
   - [x] Hardware verification: builds with 0 errors/0 warnings in GCC 10.2, flashed to EVB, streaming 66.8 Hz live telemetry (`data/hardware/m_post_expert_test.csv`). [HW]
-- [~] **M5: Dual-Channel Diagnostics & ASIL-B Fail-Safe** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only** — [[1]](#references--technical-specifications), [[13]](#references--technical-specifications), [[14]](#references--technical-specifications)
+- [~] **M5: Dual-Channel Diagnostics & Fail-Safe Interlock** (`v1.0.5-m5`) - **[SIM] + [HW] healthy-state only** — [[1]](#references--technical-specifications), [[13]](#references--technical-specifications), [[14]](#references--technical-specifications)
   - [x] Healthy-state `Diag:OK` with zero false fail-safes on hardware. [HW]
   - [ ] Short-to-GND/VDD, R525 open, VREFH drift fault injection: **[SIM] only**, never physically injected.
 - [x] **M6: VLPS Low-Power & 12 h Burn-in** (in progress, **not signed off**) — [[9]](#references--technical-specifications), [[14]](#references--technical-specifications)
@@ -97,7 +98,7 @@ Every claim below is tagged with how it was verified:
 ## Real Hardware Data (for review)
 
 All files are raw UART captures from the real board (66.7 Hz, one frame per 15 ms), recorded with
-[`tools/record_live.py`](tools/record_live.py). Columns: `t_s,cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,status`
+[`tools/record_live.py`](tools/record_live.py). Columns: `t_s,cycle,A,B,deltaD,xest,base,dyn,cls,conf,touch,exec_us,hb,status`
 (`cls`: 0 none/idle, 1 bare finger, 2 glove/acrylic, 3 water, 4 edge hover/swipe).
 
 | File | What it is |
@@ -114,7 +115,7 @@ All files are raw UART captures from the real board (66.7 Hz, one frame per 15 m
 | [`data/simulated/m4_envelope_dataset.csv`](data/simulated/m4_envelope_dataset.csv) | **[SIM]** M4 140-trial validation dataset (Bare finger, 2mm acrylic / glove, water droplets, edge swipes) |
 | [`data/simulated/m4_tinyml_multiclass_dataset.csv`](data/simulated/m4_tinyml_multiclass_dataset.csv), [`data/simulated/m5_fault_injection_log.csv`](data/simulated/m5_fault_injection_log.csv) | **[SIM]** generated datasets, not hardware |
 
-To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Green = idle, Blue = press/drop, Red = done).
+To record with cue LEDs, uncomment `#define CUE_TEST_MODE` in `src/main.c` (Green = idle, Blue = press/drop, Red = done).
 
 ### Key hardware observations
 - Untouched: A about 2080, B about 1744, ΔD about -340, baseline about -339. Static sigma: A 1.5-1.9, B 1.1-1.8, ΔD 2.1-3.3, x_est 1.6-2.3 LSB.
@@ -152,7 +153,7 @@ To record with cue LEDs, uncomment `#define WATER_TEST_MODE` in `src/main.c` (Gr
 │   ├── touch_filter.h             # M2: LFSR, MFP burst, alpha-trim, 1D adaptive Kalman
 │   ├── touch_baseline.h           # M3: 4-zone asymmetric dynamic baseline tracker
 │   ├── touch_tinyml.h             # M4: Temporal envelope feature classifier
-│   ├── touch_diag.h               # M5: On-line hardware defect diagnostics (ASIL-B)
+│   ├── touch_diag.h               # M5: Hardware defect diagnostics & fail-safe engine
 │   └── uart_telemetry.h           # High-speed ASCII streaming telemetry
 ├── Project_Settings/              # Linker scripts, startup code, debugger config
 ├── RTD/                           # NXP Real Time Drivers 3.0.0 (AUTOSAR 4.7)
@@ -213,7 +214,7 @@ The project includes full integration with **NXP FreeMASTER Lite 1.5.1**, provid
 
 ```
  [ S32K144W Hardware EVB ]
-            │ (PTC7 UART TX @ 115200 bps, 66.7 Hz)
+            │ (PTC9 UART TX @ 115200 bps, 66.7 Hz)
             ▼
  [ telemetry_bridge.py ] ───── (WebSocket ws://localhost:8090) ─────► [ FreeMASTER Lite 1.5.1 ]
                                                                              │         │
@@ -222,8 +223,8 @@ The project includes full integration with **NXP FreeMASTER Lite 1.5.1**, provid
                         [ touch_scope.html Dashboard ]                    [ NXP FreeMASTER MCP ]
                         - 4-Channel Live Rolling Scope                    - ws.connect()
                         - Glowing Touch Status Pill                       - rpc.StartComm()
-                        - TinyML Confidence Gauge                         - rpc.ReadVariable()
-                        - 32 µs MCU Execution Badge                       - rpc.WriteVariable()
+                        - Envelope Confidence Gauge                       - rpc.ReadVariable()
+                        - Execution Time Monitor                          - rpc.WriteVariable()
 ```
 
 ### 2. Monitored Variables & Memory Mappings
@@ -235,9 +236,9 @@ The project includes full integration with **NXP FreeMASTER Lite 1.5.1**, provid
 | `kalman_x_est` | `0x1FFF8CC4` | `float` | 4 B | Milestone 2 Adaptive 1D Kalman Output |
 | `baseline_val` | `0x1FFF8CE0` | `float` | 4 B | Milestone 3 4-Zone Asymmetric Dynamic Baseline |
 | `raw_diff` | `0x1FFF8DC8` | `int16` | 2 B | Raw Bipolar Differential CVD Synthesis ($\Delta D$) |
-| `confidence` | `0x1FFF8D8C` | `float` | 4 B | Milestone 4 TinyML 3-Step Smoothed Confidence |
+| `confidence` | `0x1FFF8D8C` | `float` | 4 B | Milestone 4 3-Step Smoothed Confidence |
 | `predicted_class` | `0x1FFF8D90` | `uint32` | 4 B | Classification Category (0: Idle, 1: Bare, 2: Glove, 3: Water, 4: Swipe) |
-| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | Real-time Core Execution Latency (typically 32 µs) |
+| `g_exec_time_us` | `0x1FFF8DEC` | `uint32` | 4 B | Measured Cycle Latency (~195-215 µs on hardware) |
 
 ### 3. One-Click Quick Start
 

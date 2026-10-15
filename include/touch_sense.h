@@ -121,7 +121,7 @@ void Touch_Sense_EnterVLPS(void);
 /*!
  * @brief Query if hardware is fully healthy and ready
  * @param[in] engine Pointer to engine instance
- * @return TRUE if healthy, FALSE if any ASIL-B fault is active
+ * @return TRUE if healthy, FALSE if any hardware fault is active
  */
 boolean Touch_Sense_IsHealthy(const Touch_SenseEngine_t *engine);
 

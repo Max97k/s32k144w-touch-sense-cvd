@@ -156,7 +156,7 @@ void Touch_Sense_ProcessCycle(Touch_SenseEngine_t *engine, Touch_SenseResult_t *
     /* Multi-dimensional Touch Decision Fusion */
     boolean touch_candidate = tinyml_touch;
 
-    /* Milestone 5: ISO 26262 ASIL-B Safety Interlock & Fail-Safe Clamp */
+    /* Milestone 5: Hardware Plausibility Diagnostics Fail-Safe Interlock Clamp */
     boolean final_touch = FALSE;
     if (active_faults != TOUCH_FAULT_NONE)
     {
