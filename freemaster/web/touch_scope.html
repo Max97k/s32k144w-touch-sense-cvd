@@ -587,7 +587,7 @@
           S32K144W Capacitive Touch Sensing Reference Implementation (CVD &amp; Rule-Based Classifier)
         </h1>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
-          <img src="https://img.shields.io/badge/Target-NXP%20S32K144W-005a9c.svg" alt="">
+          <img src="https://img.shields.io/badge/Target-S32K144W-005a9c.svg" alt="">
           <img src="https://img.shields.io/badge/Core-Arm%C2%AE%20Cortex%C2%AE--M4F%20%40%2048MHz-blue.svg" alt="">
           <img src="https://img.shields.io/badge/RTD-3.0.0%20(AUTOSAR%C2%AE%204.7)-orange.svg" alt="">
           <img src="https://img.shields.io/badge/Toolchain-GCC%2010.2%20(0%20errors%20%7C%200%20warns)-brightgreen.svg" alt="">
@@ -595,8 +595,8 @@
           <img src="https://img.shields.io/badge/EMC-Spread--Spectrum%20MFP-purple.svg" alt="">
           <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="">
         </div>
-        <p class="readme-p">An embedded capacitive touch sensing firmware reference implementation designed for the <strong>NXP Semiconductors® S32K144W evaluation board (<code>XS32K14WEVB-Q064</code>)</strong>.</p>
-        <p class="readme-p">The firmware utilizes a dual-pin differential Capacitive Voltage Divider (CVD) charge-transfer topology on the onboard <code>SW7</code> copper pad (<code>PTC17</code> driving, bridging resistor <code>R525</code> 10 kΩ/4.7 kΩ, <code>PTC16/ADC0_SE14</code> sensing, and external reference capacitor <code>C533</code> 10 pF). It is built with <strong>NXP Real Time Drivers (RTD 3.0.0)</strong> and defensive embedded C practices.</p>
+        <p class="readme-p">An embedded capacitive touch sensing firmware reference implementation designed for the <strong>S32K144W evaluation board (<code>XS32K14WEVB-Q064</code>)</strong>.</p>
+        <p class="readme-p">The firmware utilizes a dual-pin differential Capacitive Voltage Divider (CVD) charge-transfer topology on the onboard <code>SW7</code> copper pad (<code>PTC17</code> driving, bridging resistor <code>R525</code> 10 kΩ/4.7 kΩ, <code>PTC16/ADC0_SE14</code> sensing, and external reference capacitor <code>C533</code> 10 pF). It is built with <strong>Real Time Drivers (RTD 3.0.0)</strong> and defensive embedded C practices.</p>
 
         <h2 class="readme-h2">✦ Key Features</h2>
         <ul class="readme-ul">
@@ -652,7 +652,7 @@
         </div>
 
         <h2 class="readme-h2">🚀 Build and Flashing Instructions</h2>
-        <p class="readme-p"><strong>Prerequisites:</strong> S32 Design Studio 3.6.11 with GCC 10.2 Bare-Metal toolchain and NXP S32K1xx RTD 3.0.0. Python 3.8+ with <code>pyserial</code>.</p>
+        <p class="readme-p"><strong>Prerequisites:</strong> S32 Design Studio 3.6.11 with GCC 10.2 Bare-Metal toolchain and S32K1xx RTD 3.0.0. Python 3.8+ with <code>pyserial</code>.</p>
         <div class="readme-code"># 1. Setup S32DS toolchain environment
 $env:PATH = "C:\NXP\S32DS.3.6.11\S32DS\build_tools\msys32\usr\bin;...gcc-10.2-arm32-eabi\bin;" + $env:PATH
 
@@ -700,21 +700,21 @@ run_freemaster.bat</div>
           <li>X. Feng et al., "A Kalman Filter-Assisted Data-Predictive SAR ADC," <em>arXiv:2607.16139</em>, Jul. 2026.</li>
           <li>Y.-H. Yu and T.-Y. Sun, "A Pseudo-Differential Measuring Approach for MCU-Based Capacitive Touch Sensing," <em>IEEE Sensors Journal</em>, vol. 16, no. 2, 2016.</li>
           <li>B. Davison, "mTouch™ Sensing Solution Acquisition Methods — CVD," Microchip AN1478, 2012.</li>
-          <li>NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
+          <li>"S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
         </ol>
         <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p></div>
       <div id="readmeContentZh" class="readme-body" style="display:none;"><h1 style="font-size:20px; font-weight:800; color:#F3F4F6; margin-bottom:12px;">
           S32K144W 電容觸控演算法參考實作 (CVD &amp; 規則式包絡分類器)
         </h1>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
-          <img src="https://img.shields.io/badge/Target-NXP%20S32K144W-005a9c.svg" alt="">
+          <img src="https://img.shields.io/badge/Target-S32K144W-005a9c.svg" alt="">
           <img src="https://img.shields.io/badge/Core-Arm%C2%AE%20Cortex%C2%AE--M4F%20%40%2048MHz-blue.svg" alt="">
           <img src="https://img.shields.io/badge/RTD-3.0.0%20(AUTOSAR%C2%AE%204.7)-orange.svg" alt="">
           <img src="https://img.shields.io/badge/Toolchain-GCC%2010.2%20(0%20errors%20%7C%200%20warns)-brightgreen.svg" alt="">
           <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="">
         </div>
-        <p class="readme-p">本專案為專為 <strong>恩智浦半導體 (NXP Semiconductors®) S32K144W 評估板 (<code>XS32K14WEVB-Q064</code>)</strong> 所設計的嵌入式電容觸控（CVD）演算法參考實作韌體。</p>
-        <p class="readme-p">韌體採用板載 <code>SW7</code> 銅箔電極上的雙腳位差動電荷轉移架構（<code>PTC17</code> 驅動、跨接電阻 <code>R525</code> 10kΩ/4.7kΩ、<code>PTC16/ADC0_SE14</code> 感測、基準電容 <code>C533</code> 10 pF）。系統基於 <strong>NXP RTD 3.0.0</strong> 與防禦性嵌入式 C 語言實踐構建。</p>
+        <p class="readme-p">本專案為專為 <strong>S32K144W 評估板 (<code>XS32K14WEVB-Q064</code>)</strong> 所設計的嵌入式電容觸控（CVD）演算法參考實作韌體。</p>
+        <p class="readme-p">韌體採用板載 <code>SW7</code> 銅箔電極上的雙腳位差動電荷轉移架構（<code>PTC17</code> 驅動、跨接電阻 <code>R525</code> 10kΩ/4.7kΩ、<code>PTC16/ADC0_SE14</code> 感測、基準電容 <code>C533</code> 10 pF）。系統基於 <strong>RTD 3.0.0</strong> 與防禦性嵌入式 C 語言實踐構建。</p>
 
         <h2 class="readme-h2">✦ 核心特性 (Key Features)</h2>
         <ul class="readme-ul">
@@ -770,7 +770,7 @@ run_freemaster.bat</div>
         </div>
 
         <h2 class="readme-h2">🚀 建置與燒錄指南</h2>
-        <p class="readme-p"><strong>環境需求：</strong>S32 Design Studio 3.6.11，含 GCC 10.2 Bare-Metal 工具鏈與 NXP S32K1xx RTD 3.0.0。Python 3.8+（含 <code>pyserial</code>）。</p>
+        <p class="readme-p"><strong>環境需求：</strong>S32 Design Studio 3.6.11，含 GCC 10.2 Bare-Metal 工具鏈與 S32K1xx RTD 3.0.0。Python 3.8+（含 <code>pyserial</code>）。</p>
         <div class="readme-code"># 1. 設定 S32DS 工具鏈路徑環境變數
 $env:PATH = "C:\NXP\S32DS.3.6.11\S32DS\build_tools\msys32\usr\bin;...gcc-10.2-arm32-eabi\bin;" + $env:PATH
 
@@ -818,7 +818,7 @@ run_freemaster.bat</div>
           <li>X. Feng et al., "A Kalman Filter-Assisted Data-Predictive SAR ADC," <em>arXiv:2607.16139</em>, Jul. 2026.</li>
           <li>Y.-H. Yu and T.-Y. Sun, "A Pseudo-Differential Measuring Approach for MCU-Based Capacitive Touch Sensing," <em>IEEE Sensors Journal</em>, vol. 16, no. 2, 2016.</li>
           <li>B. Davison, "mTouch™ Sensing Solution Acquisition Methods — CVD," Microchip AN1478, 2012.</li>
-          <li>NXP Semiconductors, "S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
+          <li>"S32K1xx ADC Guidelines, Spec, and Configuration," AN12217, Jun. 2018.</li>
         </ol>
         <p class="readme-p" style="margin-top:16px; color:var(--text-muted); font-size:12px;">BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.</p></div>
     </div>
@@ -986,7 +986,7 @@ run_freemaster.bat</div>
             title: "XS32K14WEVB-Q064 MCU Platform",
             category: "Target Hardware",
             badgeColor: "var(--nxp-blue)",
-            plain: "NXP's 32-bit ARM Cortex-M4F automotive microcontroller featuring hardware FPU and 12-bit SAR ADC, certified to AEC-Q100 Grade 1.",
+            plain: "32-bit ARM Cortex-M4F automotive microcontroller featuring hardware FPU and 12-bit SAR ADC, certified to AEC-Q100 Grade 1.",
             effect: "Equipped with automotive EMC robustness, -40°C to 125°C temperature tolerance, and 64KB RAM / 512KB Flash for automotive touch switches and Hands-Off Detection (HOD)."
           }
         }
@@ -1129,7 +1129,7 @@ run_freemaster.bat</div>
             title: "XS32K14WEVB-Q064 (車規 MCU 評估板)",
             category: "硬體平台",
             badgeColor: "var(--nxp-blue)",
-            plain: "NXP 專為車載車身與安全應用設計的 32 位元 ARM Cortex-M4F 微控制器，內建硬體浮點運算單元（FPU）與 12-bit 高精度 SAR ADC，通過 AEC-Q100 Grade 1 車規認證。",
+            plain: "專為車載車身與安全應用設計的 32 位元 ARM Cortex-M4F 微控制器，內建硬體浮點運算單元（FPU）與 12-bit 高精度 SAR ADC，通過 AEC-Q100 Grade 1 車規認證。",
             effect: "具備高抗 EMI 干擾、-40°C ~ 125°C 車規耐溫範圍與 128KB 靜態 RAM / 512KB Flash，是車載電容觸控按鍵與方向盤離手檢測（HOD）的理想核心。"
           }
         }
@@ -1402,6 +1402,7 @@ run_freemaster.bat</div>
     function runScenario(name, ms) {
       if (!isSimMode) { toast(T().hwOnly); return; }
       sim.scen = name; sim.scenStart = performance.now(); sim.scenUntil = sim.scenStart + ms;
+      sim.autoT0 = sim.scenUntil;
     }
     function toggleAuto() {
       if (!isSimMode) { toast(T().hwOnly); return; }

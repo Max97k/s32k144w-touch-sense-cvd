@@ -1,6 +1,6 @@
 # S32K144W Capacitive Touch Sensing Reference Implementation (CVD & Rule-Based Classifier)
 
-[![Target: NXP S32K144W](https://img.shields.io/badge/Target-NXP%20S32K144W-005a9c.svg)](https://www.nxp.com/products/processors-and-microcontrollers/arm-microcontrollers/s32k-automotive-mcus/s32k1-microcontrollers-for-general-purpose:S32K1)
+[![Target: S32K144W](https://img.shields.io/badge/Target-S32K144W-005a9c.svg)](https://www.nxp.com/products/processors-and-microcontrollers/arm-microcontrollers/s32k-automotive-mcus/s32k1-microcontrollers-for-general-purpose:S32K1)
 [![Core: Arm Cortex-M4F](https://img.shields.io/badge/Core-Arm%C2%AE%20Cortex%C2%AE--M4F%20%40%2048MHz-blue.svg)](https://www.arm.com/products/silicon-ip-cpu/cortex-m/cortex-m4)
 [![RTD: 3.0.0 (AUTOSAR 4.7)](https://img.shields.io/badge/RTD-3.0.0%20(AUTOSAR%C2%AE%204.7)-orange.svg)](https://www.nxp.com)
 [![Toolchain: GCC 10.2](https://img.shields.io/badge/Toolchain-GCC%2010.2%20(0%20errors%20%7C%200%20warns)-brightgreen.svg)](https://gcc.gnu.org)
@@ -109,8 +109,8 @@ D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<Exec
 | Field | Type | Description |
 | :--- | :---: | :--- |
 | `Cycle` | uint32 | Monotonic cycle counter incremented every 15.0 ms frame |
-| `A` | uint16 | Raw ADC reading on electrode PTC17 (`ADC0_SE15`) |
-| `B` | uint16 | Raw ADC reading on reference PTC16 (`ADC0_SE14`) |
+| `A` | uint16 | Scan A (positive phase) charge-balanced CVD reading on `ADC0_SE14` (`PTC16`) |
+| `B` | uint16 | Scan B (negative phase) charge-balanced CVD reading on `ADC0_SE14` (`PTC16`) |
 | `DeltaD` | int16 | Differential CVD synthesis: $V_B - V_A$ |
 | `Xest` | float | 1D Adaptive Scalar Kalman Filter estimated state |
 | `Base` | float | 4-Zone asymmetric dynamic baseline tracking level |
