@@ -15,9 +15,13 @@ Release/
 *.s19
 
 # ==============================================================================
-# NXP Proprietary RTD Source Code
+# NXP Proprietary RTD / S32CT Auto-Generated Code & FreeMASTER Lite Scripts
+# (Automatically populated by S32DS "Update Code" from s32k144w_touch_cvd.mex)
 # ==============================================================================
 RTD/
+generate/
+board/
+freemaster/touch_bridge_api.js
 
 # ==============================================================================
 # Eclipse / S32DS Workspace & User Specific Settings
@@ -36,3 +40,5 @@ gdb_flash.cmd
 __pycache__/
 *.pyc
 .default_mex
+ClockConfigurationMappings.txt
+ClockYaml.txt

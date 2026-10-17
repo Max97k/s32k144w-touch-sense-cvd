@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026, Max97k
+# All Rights Reserved.
+# SPDX-License-Identifier: BSD-3-Clause
 """
 S32K144W Touch Sensing CVD - M1 Automated Telemetry Logger & Validator
 Captures 100-point baseline, verifies AN12217 calibration, and evaluates M1 Pass Criteria.

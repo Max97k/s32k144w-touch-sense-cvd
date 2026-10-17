@@ -9,6 +9,7 @@
 *
 *   Copyright (c) 2026, Max97k
 *   All Rights Reserved.
+*   SPDX-License-Identifier: BSD-3-Clause
 ==================================================================================================*/
 
 #include "touch_diag.h"

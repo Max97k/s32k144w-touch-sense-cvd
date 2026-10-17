@@ -1,4 +1,6 @@
 @echo off
+:: Copyright (c) 2026, Max97k
+:: SPDX-License-Identifier: BSD-3-Clause
 title S32K144W CVD Touch Sensing Engine - FreeMASTER Dashboard Launcher
 echo ===============================================================================
 echo     S32K144W Automotive Capacitive Touch Sensing CVD Engine
@@ -7,6 +9,13 @@ echo ===========================================================================
 echo.
 
 cd /d "%~dp0freemaster"
+
+:: Ensure FreeMASTER Lite mock-api script is populated from local NXP installation
+if not exist "touch_bridge_api.js" (
+    if exist "C:\NXP\FreeMASTER Lite 1.5.1\FreeMASTER Lite\examples\mock-api\mock-api.js" (
+        copy /Y "C:\NXP\FreeMASTER Lite 1.5.1\FreeMASTER Lite\examples\mock-api\mock-api.js" "touch_bridge_api.js" >nul
+    )
+)
 
 :: 1. Terminate any previous fmlite instance to release port 8090
 taskkill /F /IM fmlite.exe >nul 2>&1

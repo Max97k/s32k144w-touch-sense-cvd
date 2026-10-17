@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026, Max97k
+# All Rights Reserved.
+# SPDX-License-Identifier: BSD-3-Clause
 """
 Automated OpenSDA PEMicro Flash & Reset Utility for S32K144W
 """

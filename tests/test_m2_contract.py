@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026, Max97k
+# All Rights Reserved.
+# SPDX-License-Identifier: BSD-3-Clause
 """
 ====================================================================================================
 Project              : S32K144W Touch Sensing CVD Algorithm

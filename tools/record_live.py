@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026, Max97k
+# All Rights Reserved.
+# SPDX-License-Identifier: BSD-3-Clause
 """Record live touch telemetry (D,... CSV lines) from COM5 to a CSV file.
 
 Usage: python tools/record_live.py [seconds=30] [out.csv]

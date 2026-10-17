@@ -178,7 +178,9 @@ D,<Cycle>,<A>,<B>,<DeltaD>,<Xest>,<Base>,<DynDelta>,<Class>,<Conf>,<Touch>,<Exec
 * **S32 Design Studio for S32 Platform** (Version 3.6.11)，含 GCC 10.2 Bare-Metal 工具鏈與 NXP S32K1xx RTD 3.0.0。
 * Python 3.8+（含 `pyserial` 套件，供燒錄與遙測錄製使用）。
 
-### 透過 Make 編譯韌體：
+### 透過 S32DS 或 Make 編譯韌體：
+* **於 S32 Design Studio 內建置**：匯入專案後，於 **Peripherals** 視圖開啟 `s32k144w_touch_cvd.mex` 並點擊 **Update Code** — S32DS 將自動從本機已安裝的 NXP S32K1xx RTD 3.0.0 中載入並產生 `RTD/`、`generate/` 與 `board/`。
+* **透過命令列 GNU Make 編譯**（完成 `Update Code` 後）：
 ```powershell
 # 1. 設定 S32DS 工具鏈路徑環境變數
 $env:PATH = "C:\NXP\S32DS.3.6.11\S32DS\build_tools\msys32\usr\bin;C:\NXP\S32DS.3.6.11\S32DS\build_tools\gcc_v10.2\gcc-10.2-arm32-eabi\bin;" + $env:PATH
@@ -269,4 +271,5 @@ http://localhost:8090/touch_scope.html
 
 ## 授權條款 (License)
 
-BSD-3-Clause License. Copyright (c) 2026, Max97k. All rights reserved.
+* **專案原創 CVD 電容式觸控演算法、自適應卡爾曼濾波器、TinyML 分類器、ISO 26262 安全診斷、FreeMASTER 遙測橋接與契約測試套件**（`src/`、`include/`、`freemaster/`、`tests/`、`tools/`）：**BSD-3-Clause License**，Copyright (c) 2026, Max97k. All rights reserved.
+* **NXP S32DS 自動產生與專案框架檔案**：NXP Real-Time Drivers（`RTD/`）與 S32 Configuration Tools 自動產生之設定檔（`generate/`、`board/`）均已排除於版本控制之外（`.gitignore`），使用者於 S32DS 內對 `s32k144w_touch_cvd.mex` 執行 **Update Code** 時即會自動從本機 RTD/SDK 載入產生。其餘 S32DS 啟動與連結器框架檔案（`Project_Settings/`）均受 **NXP 軟體授權合約 (`LA_OPT_NXP_Software_License`)** 規範；完整第三方授權聲明請參閱 [LICENSE](LICENSE)。
